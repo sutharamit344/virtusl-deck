@@ -1,0 +1,27 @@
+[{
+  "id": "deck_standard_52",
+  "name": "Standard 52-Card Deck",
+  "description": "Classic deck of 52 playing cards including four suits: Hearts, Diamonds, Clubs, and Spades.",
+  "category": "Card",
+  "cardsIncluded": 52,
+  "price": 75,
+  "currency": "INR",
+  "image": "/deck_standard_52.jpg",
+  "cards": [
+    
+  ]
+},
+{
+  "id": "deck_uno_108",
+  "name": "UNO Card Deck",
+  "description": "Official UNO 108-card deck with number, skip, reverse, draw two, wild, and wild draw four cards.",
+  "category": "Card Game",
+  "cardsIncluded": 108,
+  "price": 99,
+  "currency": "INR",
+  "image": "/deck_uno_108.jpg",
+  "cards": [
+    
+  ]
+}
+]

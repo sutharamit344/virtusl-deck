@@ -1,0 +1,121 @@
+:root {
+  --color-bg: #0D1117;
+  --color-surface: #161B22;
+  --color-primary: #3B82F6;
+  --color-primary-light: #60A5FA;
+  --color-text: #E6EDF3;
+  --color-text-muted: #8B949E;
+  --color-border: #30363D;
+  --color-success: #22C55E;
+  --color-warning: #FACC15;
+  --color-error: #EF4444;
+}
+
+#root{
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  user-select: none;
+}
+
+@keyframes fisherShuffle {
+  0%   { transform: rotate(0deg) translateX(0); }
+  10%  { transform: rotate(-3deg) translateX(-10px); }
+  20%  { transform: rotate(4deg) translateX(12px); }
+  30%  { transform: rotate(-2deg) translateX(-8px); }
+  40%  { transform: rotate(2deg) translateX(10px); }
+  50%  { transform: rotate(-1deg) translateX(-6px); }
+  60%  { transform: rotate(2deg) translateX(6px); }
+  70%  { transform: rotate(-1.5deg) translateX(-5px); }
+  80%  { transform: rotate(1deg) translateX(4px); }
+  90%  { transform: rotate(-0.5deg) translateX(-2px); }
+  100% { transform: rotate(0deg) translateX(0); }
+}
+
+@keyframes riffleShuffle {
+  0%   { transform: translateY(0) scale(1); }
+  10%  { transform: translateY(-4px) scale(1.02); }
+  20%  { transform: translateY(3px) scale(0.98); }
+  30%  { transform: translateY(-5px) scale(1.03); }
+  40%  { transform: translateY(4px) scale(0.97); }
+  50%  { transform: translateY(-3px) scale(1.02); }
+  60%  { transform: translateY(2px) scale(0.99); }
+  70%  { transform: translateY(-2px) scale(1.01); }
+  80%  { transform: translateY(1px) scale(1); }
+  90%  { transform: translateY(-1px) scale(1); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes pileShuffle {
+  0%   { transform: translateX(0) rotate(0deg); }
+  10%  { transform: translateX(-12px) rotate(-6deg); }
+  20%  { transform: translateX(10px) rotate(5deg); }
+  30%  { transform: translateX(-8px) rotate(-4deg); }
+  40%  { transform: translateX(8px) rotate(4deg); }
+  50%  { transform: translateX(-6px) rotate(-3deg); }
+  60%  { transform: translateX(6px) rotate(3deg); }
+  70%  { transform: translateX(-4px) rotate(-2deg); }
+  80%  { transform: translateX(4px) rotate(2deg); }
+  90%  { transform: translateX(-2px) rotate(-1deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+
+@keyframes allShuffle {
+  0%   { transform: scale(1) rotate(0deg); opacity: 1; }
+  10%  { transform: scale(1.05) rotate(-6deg); opacity: 0.95; }
+  20%  { transform: scale(0.97) rotate(4deg); opacity: 1; }
+  30%  { transform: scale(1.1) rotate(-5deg); opacity: 0.9; }
+  40%  { transform: scale(0.95) rotate(3deg); opacity: 1; }
+  50%  { transform: scale(1.08) rotate(-4deg); opacity: 0.92; }
+  60%  { transform: scale(0.96) rotate(2deg); opacity: 0.98; }
+  70%  { transform: scale(1.06) rotate(-2deg); opacity: 0.94; }
+  80%  { transform: scale(1) rotate(1deg); opacity: 1; }
+  90%  { transform: scale(1.02) rotate(-1deg); opacity: 0.96; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes cardDealRadial {
+  0% {
+    opacity: 1;
+    transform:
+      rotate(var(--deal-angle, 0deg))
+      translateY(0)
+      rotate(calc(-1 * var(--deal-angle, 0deg)))
+      scale(1);
+  }
+  25% {
+    opacity: 0.8;
+    transform:
+      rotate(var(--deal-angle, 0deg))
+      translateY(calc(-1 * var(--deal-radius, 50px)))
+      rotate(calc(-1 * var(--deal-angle, 0deg)))
+      scale(0.8);
+  }
+  75% {
+    opacity: 0.2;
+    transform:
+      rotate(var(--deal-angle, 0deg))
+      translateY(calc(-1 * var(--deal-radius, 50px)))
+      rotate(calc(-1 * var(--deal-angle, 0deg)))
+      scale(0.8);
+  }
+  100% {
+    opacity: 0;
+    transform:
+      rotate(var(--deal-angle, 0deg))
+      translateY(calc(-1 * var(--deal-radius, 100px)))
+      rotate(calc(-1 * var(--deal-angle, 0deg)))
+      scale(0);
+  }
+}
+
+.deck-card.dealRadial {
+  animation-name: cardDealRadial;
+  animation-duration: 0.6s;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: forwards;
+  animation-delay: var(--deal-delay, 0ms);
+  position: absolute;
+}
+
+
+
