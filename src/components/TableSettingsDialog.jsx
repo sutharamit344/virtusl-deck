@@ -8,7 +8,7 @@ import {
 } from "@mui/material";
 import { useDispatch, useSelector } from "react-redux";
 import { useState } from "react";
-import { deleteRoom, updateRoomSettings } from "../redux/roomSlice";
+import { deleteRoom, updateRoomSettings } from "../pages/room/roomSlice";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useNavigate } from "react-router-dom";
 

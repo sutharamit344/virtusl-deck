@@ -1,9 +1,9 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
-const cors = require('cors');
+const cors = require("cors");
 const corsHandler = cors({ origin: true });
-require('dotenv').config();
+require("dotenv").config();
 
 admin.initializeApp();
 const db = admin.database();
@@ -18,13 +18,17 @@ const transporter = nodemailer.createTransport({
 
 // Generate unique deck ID with optional prefix
 function generateDeckId(prefix = "DECK") {
-  return `${prefix}-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+  return `${prefix}-${Math.random()
+    .toString(36)
+    .substring(2, 10)
+    .toUpperCase()}`;
 }
 
 exports.gumroadWebhook = functions.https.onRequest(async (req, res) => {
   console.log("🔔 Webhook received:", req.body);
 
-  const { email, purchase_id, product_name, license_key, short_product_id } = req.body;
+  const { email, purchase_id, product_name, license_key, short_product_id } =
+    req.body;
 
   if (!email || !short_product_id) {
     console.warn("⚠️ Missing email or short_product_id.");
@@ -38,9 +42,14 @@ exports.gumroadWebhook = functions.https.onRequest(async (req, res) => {
   // Fetch deck data from deckstore
   let deckData = {};
   try {
-    const deckSnap = await db.ref(`deckstore/${short_product_id}`).once("value");
+    const deckSnap = await db
+      .ref(`deckstore/${short_product_id}`)
+      .once("value");
     if (!deckSnap.exists()) {
-      console.error("❌ Deck not found for short_product_id:", short_product_id);
+      console.error(
+        "❌ Deck not found for short_product_id:",
+        short_product_id
+      );
       return res.status(404).send("Deck not found.");
     }
 
