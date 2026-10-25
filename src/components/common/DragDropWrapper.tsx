@@ -48,8 +48,10 @@ const DragDropWrapper: React.FC<DragDropWrapperProps> = ({
 }) => {
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
+  const isDistributing = useAppSelector((state) => state.deck.isDistributing);
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    if (isDistributing) return;
     const { active, over } = event;
 
     if (!deckId || !user) return;

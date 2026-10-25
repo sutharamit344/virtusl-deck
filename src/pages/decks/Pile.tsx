@@ -219,32 +219,11 @@ const Pile: React.FC<PileProps> = ({
   const CardComponent = isUnoDeck ? UnoCard : DeckCard;
 
   useEffect(() => {
-    !isDistributing && setFinalCards(paginatedCards);
-  }, [paginatedCards, isDistributing]);
-
-  useEffect(() => {
-    if (!isDistributing) return;
-
-    const timer = setInterval(() => {
-      setFinalCards((prev) => {
-        const nextCard = [...prev]?.reverse().find((c) => !c.IsDistributed);
-
-        if (!nextCard) {
-          clearInterval(timer);
-          return prev;
-        }
-
-        return prev.map((c) =>
-          c.id === nextCard.id ? { ...c, IsDistributed: true } : c,
-        );
-      });
-    }, 200);
-
-    return () => clearInterval(timer);
-  }, [isDistributing]);
+    setFinalCards(paginatedCards);
+  }, [paginatedCards]);
 
   const handleDistribute = async () => {
-    if (!roomId || !playersList || playersList.length === 0) return;
+    if (!roomId || !playersList || playersList.length === 0 || isDistributing) return;
     try {
       deckId &&
         (await dispatch(
@@ -592,16 +571,17 @@ const Pile: React.FC<PileProps> = ({
                   >
                     Shuffle
                   </Button>
-                  {roomId && playersList && playersList.length > 1 && (
+                  {roomId && playersList && playersList.length >= 1 && (
                     <Button
                       variant="secondary"
+                      disabled={Boolean(isDistributing)}
                       onClick={handleDistribute}
                       size="sm"
                       className={`${actionButtonStyle} ${
-                        isDistributing && activeButtonStyle
+                        isDistributing ? activeButtonStyle : ""
                       }`}
                     >
-                      Distribute
+                      {isDistributing ? "Dealing..." : "Distribute"}
                     </Button>
                   )}
                 </>

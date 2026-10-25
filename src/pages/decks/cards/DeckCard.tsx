@@ -172,23 +172,11 @@ const DeckCard = ({
   };
 
   if (isDistributing) {
-    const playerIndex = index % playersUid.length;
-    const anglePerPlayer = 360 / playersUid.length;
-    const dealAngle = -(180 + anglePerPlayer * playerIndex);
-
     return (
       <div
         id={card.id}
-        className={`${card?.IsDistributed ? " dealRadial" : ""}`}
-        style={
-          {
-            ...combinedStyle,
-            "--deal-angle": `${dealAngle}deg`,
-            "--deal-radius": `200px`,
-          } as React.CSSProperties
-        }
-        {...(isCardAccess && listeners)}
-        {...(isCardAccess && attributes)}
+        className={baseClasses}
+        style={combinedStyle}
       >
         <CardFace
           faceUp={faceUp}

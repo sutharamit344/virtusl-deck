@@ -499,14 +499,23 @@ export const distributeCards = createAsyncThunk(
         insertRoomHistory({
           roomId,
           action: "Distribute Cards",
-          details: `Distributing ${pile.length} cards to ${playersList.length} players`,
+          details: `Distributing ${pile.length} cards to ${playersList.length} player${playersList.length > 1 ? "s" : ""}`,
         }),
       );
 
+      // Phase 1: Signal distribution start in database so all clients trigger dealing animation & action blocker
+      await update(ref(db, `decks/${deckId}`), {
+        isDistributing: true,
+      });
+
+      // Phase 2: Allow dealing & stacking animation to play across all connected screens (~2200ms)
+      await new Promise((resolve) => setTimeout(resolve, 2200));
+
+      // Phase 3: Assign cards into players' hands and finalize distribution
       const deck = Object.values(pile).sort((a, b) => a.order - b.order);
 
       const updates: Record<string, any> = {
-        isDistributing: true,
+        isDistributing: false,
         distributed: true,
       };
 
@@ -535,20 +544,12 @@ export const distributeCards = createAsyncThunk(
 
       await update(ref(db, `decks/${deckId}`), updates);
 
-      // Async cleanup: Clear isDistributing in the database after 3 seconds of client-side animation
-      setTimeout(() => {
-        update(ref(db, `decks/${deckId}`), { isDistributing: false }).catch((err) =>
-          console.error("Failed to reset isDistributing:", err)
-        );
-      }, 3000);
-
       thunkAPI.dispatch(
         updateRoomSettings({
           roomId,
           setting: "table",
           value: {
             ...settings.table,
-
             mode: "Circular",
           },
         }),
@@ -581,7 +582,7 @@ export const distributeCards = createAsyncThunk(
       return updates;
     } catch (error) {
       const err = error as Error;
-      await update(ref(db, `decks/${deckId}`), { isDistributing: false });
+      await update(ref(db, `decks/${deckId}`), { isDistributing: false }).catch(() => {});
       return thunkAPI.rejectWithValue(err.message);
     }
   },

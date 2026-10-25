@@ -25,6 +25,7 @@ import { Card } from "../decks/deckModal";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { HistoryIcon } from "lucide-react";
 import CommonDialog from "../../components/ui/CustomDialog";
+import DistributeAnimation from "./DistributeAnimation";
 
 interface TableProps {
   cardW?: number;
@@ -58,7 +59,9 @@ const Table: React.FC<TableProps> = ({
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [face, setFace] = useState<boolean | null>(null);
   const [lastCardId, setLastCardId] = useState<string | null>(null);
-  const { cards, back, deckInRoom } = useAppSelector((state) => state.deck);
+  const { cards, back, deckInRoom, isDistributing } = useAppSelector(
+    (state) => state.deck,
+  );
   const { turnState, settings } = useAppSelector((state) => state.room);
   const [openDialog, setOpenDialog] = useState(false);
   const [openHistoryDialog, setOpenHistoryDialog] = useState(false);
@@ -357,8 +360,19 @@ const Table: React.FC<TableProps> = ({
           )}
           {renderPlayersAroundTable()}
 
+          {isDistributing && (
+            <DistributeAnimation
+              tableWidth={width}
+              tableHeight={height}
+              playersList={playersList}
+              cardBack={back}
+              cardW={cardW}
+              cardH={cardH}
+            />
+          )}
+
           {deckInRoom === roomId && deckId ? (
-            table?.mode === "Stacked" && (
+            !isDistributing && table?.mode === "Stacked" && (
               <Pile
                 face={face}
                 isDeckAccess={isDeckAccess}
@@ -372,20 +386,22 @@ const Table: React.FC<TableProps> = ({
               />
             )
           ) : (
-            <>
-              <Button
-                variant="secondary"
-                onClick={() => setOpenDialog(true)}
-              >
-                Add Deck
-              </Button>
+            !isDistributing && (
+              <>
+                <Button
+                  variant="secondary"
+                  onClick={() => setOpenDialog(true)}
+                >
+                  Add Deck
+                </Button>
 
-              <DeckSelectDialog
-                open={openDialog}
-                onClose={() => setOpenDialog(false)}
-                onSelect={handleDeckSelect}
-              />
-            </>
+                <DeckSelectDialog
+                  open={openDialog}
+                  onClose={() => setOpenDialog(false)}
+                  onSelect={handleDeckSelect}
+                />
+              </>
+            )
           )}
           <HistoryDialog
             open={openHistoryDialog}

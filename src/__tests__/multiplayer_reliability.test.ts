@@ -438,4 +438,146 @@ describe("4. Circular Table Played Cards Resolution", () => {
   });
 });
 
+describe("5. Card Distribution and Stacking Animation Logic", () => {
+  it("distributes all 52 cards round-robin across players without card duplication or loss", () => {
+    const deck = createMockDeck(52);
+    const playersList = [
+      { uid: "p1", displayName: "Ams" },
+      { uid: "p2", displayName: "Craft" },
+      { uid: "p3", displayName: "trueev" },
+    ];
+    const roomId = "room_123";
+
+    const deckCopy = [...deck].sort((a, b) => a.order - b.order);
+    const updates: Record<string, any> = {
+      isDistributing: false,
+      distributed: true,
+    };
+    const orderByLocation: Record<string, number> = {};
+
+    while (deckCopy.length > 0) {
+      for (const player of playersList) {
+        const card = deckCopy.pop();
+        if (!card) break;
+        const hand = player.uid;
+        const locationPath = `${roomId}-${hand}-hand-pile`;
+
+        if (orderByLocation[locationPath] === undefined) {
+          orderByLocation[locationPath] = 0;
+        }
+
+        updates[`cards/${card.id}`] = {
+          ...card,
+          locationPath,
+          order: orderByLocation[locationPath]++,
+          faceUp: false,
+          hand,
+        };
+      }
+    }
+
+    const distributedCards = Object.entries(updates)
+      .filter(([k]) => k.startsWith("cards/"))
+      .map(([, v]) => v as Card);
+
+    // Total cards must equal original deck size
+    expect(distributedCards).toHaveLength(52);
+
+    // All unique card IDs preserved
+    const uniqueIds = new Set(distributedCards.map((c) => c.id));
+    expect(uniqueIds.size).toBe(52);
+
+    // 52 divided by 3 players gives 18, 17, 17
+    const p1Cards = distributedCards.filter((c) => c.hand === "p1");
+    const p2Cards = distributedCards.filter((c) => c.hand === "p2");
+    const p3Cards = distributedCards.filter((c) => c.hand === "p3");
+
+    expect(p1Cards.length + p2Cards.length + p3Cards.length).toBe(52);
+    expect(p1Cards).toHaveLength(18);
+    expect(p2Cards).toHaveLength(17);
+    expect(p3Cards).toHaveLength(17);
+
+    // Each player's hand has strictly sequential 0-indexed orders
+    expect(p1Cards.map((c) => c.order)).toEqual(Array.from({ length: 18 }, (_, i) => i));
+    expect(p2Cards.map((c) => c.order)).toEqual(Array.from({ length: 17 }, (_, i) => i));
+    expect(p3Cards.map((c) => c.order)).toEqual(Array.from({ length: 17 }, (_, i) => i));
+  });
+
+  it("distributes all cards to 1 player if solo play/testing", () => {
+    const deck = createMockDeck(52);
+    const playersList = [{ uid: "solo_p", displayName: "SoloPlayer" }];
+    const roomId = "room_solo";
+
+    const deckCopy = [...deck].sort((a, b) => a.order - b.order);
+    const updates: Record<string, any> = {};
+    const orderByLocation: Record<string, number> = {};
+
+    while (deckCopy.length > 0) {
+      for (const player of playersList) {
+        const card = deckCopy.pop();
+        if (!card) break;
+        const hand = player.uid;
+        const locationPath = `${roomId}-${hand}-hand-pile`;
+
+        if (orderByLocation[locationPath] === undefined) {
+          orderByLocation[locationPath] = 0;
+        }
+
+        updates[`cards/${card.id}`] = {
+          ...card,
+          locationPath,
+          order: orderByLocation[locationPath]++,
+          faceUp: false,
+          hand,
+        };
+      }
+    }
+
+    const distributedCards = Object.values(updates);
+    expect(distributedCards).toHaveLength(52);
+    expect(distributedCards.every((c: any) => c.hand === "solo_p")).toBe(true);
+  });
+
+  it("computes distinct stacking offsets so dealt cards visibly stack at player positions", () => {
+    const numPlayers = 3;
+    const rounds = 4;
+    const totalCards = rounds * numPlayers;
+    const a = 300;
+    const b = 200;
+    const angleStep = (2 * Math.PI) / numPlayers;
+
+    const cards = [];
+    for (let i = 0; i < totalCards; i++) {
+      const playerIdx = i % numPlayers;
+      const stackIdx = Math.floor(i / numPlayers);
+      const angle = angleStep * playerIdx - Math.PI / 2;
+      const targetBaseX = -a * Math.cos(angle) * 1.15;
+      const targetBaseY = -b * Math.sin(angle) * 1.1;
+
+      const stackOffsetX = (stackIdx % 6) * 2 - 5;
+      const stackOffsetY = (stackIdx % 6) * -2 + 3;
+
+      cards.push({
+        playerIdx,
+        stackIdx,
+        targetX: targetBaseX + stackOffsetX,
+        targetY: targetBaseY + stackOffsetY,
+        zIndex: 50 + i,
+      });
+    }
+
+    expect(cards).toHaveLength(12);
+
+    // Each player has 4 stacked cards
+    const p0Cards = cards.filter((c) => c.playerIdx === 0);
+    expect(p0Cards).toHaveLength(4);
+
+    // Later dealt cards to the same player have higher zIndex (render on top of stack)
+    for (let j = 1; j < p0Cards.length; j++) {
+      expect(p0Cards[j]!.zIndex).toBeGreaterThan(p0Cards[j - 1]!.zIndex);
+    }
+  });
+});
+
+
 

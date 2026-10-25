@@ -46,9 +46,8 @@ const Room: React.FC = () => {
   const dispatch = useAppDispatch();
   const [radius, setRadius] = useState(200);
   const [showSettings, setShowSettings] = useState(false);
-  const { cards, deckAccess, reverseorder, layout } = useAppSelector(
-    (state) => state.deck,
-  );
+  const { cards, deckAccess, reverseorder, layout, isDistributing } =
+    useAppSelector((state) => state.deck);
   const user = useAppSelector((state) => state.auth.user);
   const {
     turnState,
@@ -411,14 +410,14 @@ const Room: React.FC = () => {
               <Button
                 variant="secondary"
                 onClick={handleSkipTurn}
-                disabled={!isTurn}
+                disabled={isDistributing || !isTurn}
                 className={actionButtonStyle}
               >
                 <SkipForward size={18} />
               </Button>
               <Button
                 variant="secondary"
-                disabled={cardsOnLocation.length < 2}
+                disabled={isDistributing || cardsOnLocation.length < 2}
                 onClick={() => {
                   deckId &&
                     locationPath &&
@@ -447,7 +446,7 @@ const Room: React.FC = () => {
               </Button>
               <Button
                 variant="secondary"
-                disabled={cardsOnLocation.length < 2}
+                disabled={isDistributing || cardsOnLocation.length < 2}
                 onClick={() => {
                   deckId &&
                     locationPath &&
@@ -462,7 +461,7 @@ const Room: React.FC = () => {
               </Button>
               <Button
                 variant="secondary"
-                disabled={cardFace || cardsOnLocation.length < 2}
+                disabled={isDistributing || cardFace || cardsOnLocation.length < 2}
                 onClick={() => {
                   switch (byRank) {
                     case null:
@@ -483,7 +482,7 @@ const Room: React.FC = () => {
               </Button>
               <Button
                 variant="secondary"
-                disabled={cardFace || !Object.keys(cardsGroupedBySuit).length}
+                disabled={isDistributing || cardFace || !Object.keys(cardsGroupedBySuit).length}
                 onClick={() => handleSuit()}
                 size="sm"
                 className={actionButtonStyle}
@@ -494,6 +493,7 @@ const Room: React.FC = () => {
               {hostUid === user?.uid && (
                 <Button
                   variant="secondary"
+                  disabled={Boolean(isDistributing)}
                   onClick={() => setShowSettings(true)}
                   className={actionButtonStyle}
                 >
@@ -503,6 +503,32 @@ const Room: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* 🔒 Full-Screen Action Blocker during Card Distribution */}
+        {isDistributing && (
+          <div
+            className="fixed inset-0 z-[99999999] flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] select-none cursor-wait pointer-events-auto"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+          >
+            <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-[#161b22]/95 border border-[#00D8FF]/50 shadow-[0_0_30px_rgba(0,216,255,0.35)] animate-pulse">
+              <div className="w-5 h-5 border-2 border-[#00D8FF] border-t-transparent rounded-full animate-spin" />
+              <span className="text-[#00D8FF] font-bold text-sm tracking-wide">
+                Distributing cards to players...
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </DragDropWrapper>
   );
