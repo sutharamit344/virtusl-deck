@@ -112,16 +112,23 @@ const Table: React.FC<TableProps> = ({
   const pile = useMemo(() => {
     const mover = new Set<string>();
     const cardInRound: Card[] = [];
-    const sliceIndex = playersList.length;
-    getCardsByLocation()
-      .sort((a, b) => b.order - a.order)
-      .filter((card) => !!card?.hand)
-      .forEach((card) => {
-        if (mover.size !== sliceIndex) {
-          mover.add(card.owner || card.hand || "");
+    const sliceIndex = playersList.length || 1;
+    const cardsOnTable = getCardsByLocation().sort((a, b) => b.order - a.order);
+
+    cardsOnTable.forEach((card) => {
+      const playerKey = card.hand || card.owner;
+      if (playerKey) {
+        if (!mover.has(playerKey) && mover.size < sliceIndex) {
+          mover.add(playerKey);
           cardInRound.push(card);
         }
-      });
+      } else {
+        if (cardInRound.length < sliceIndex) {
+          cardInRound.push(card);
+        }
+      }
+    });
+
     return cardInRound.reverse();
   }, [getCardsByLocation, playersList.length]);
 
@@ -186,12 +193,17 @@ const Table: React.FC<TableProps> = ({
       const pileY = y * pileRadius - 40;
       const playerPath = `${roomId}-${player.uid}-hand-pile`;
       const playerCards = getCards.filter((c) => c.locationPath === playerPath);
-      const card = finalCards
-        ?.filter((c) => c.hand === player.uid)
-        .reverse()?.[0];
+      const card =
+        finalCards
+          ?.filter((c) => (c.hand || c.owner) === player.uid)
+          .reverse()?.[0] ||
+        (finalCards.some((c) => !c.hand && !c.owner) &&
+        (player.uid === user?.uid || index === 0)
+          ? finalCards.find((c) => !c.hand && !c.owner)
+          : undefined);
 
       const arrangedCards = finalCards.findLastIndex(
-        (card) => card.hand === player.uid,
+        (c) => (c.hand || c.owner) === player.uid || c.id === card?.id,
       );
 
       return (

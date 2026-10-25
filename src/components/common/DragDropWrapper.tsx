@@ -73,7 +73,7 @@ const DragDropWrapper: React.FC<DragDropWrapperProps> = ({
       const isHand = newLocation.endsWith("-hand-pile");
       const hand = isHand && roomId
         ? newLocation.replace(`${roomId}-`, "").replace("-hand-pile", "")
-        : null;
+        : (currentCard.hand || user?.uid || null);
 
       const result = await dispatch(
         moveCardAtomic({
