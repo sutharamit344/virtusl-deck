@@ -32,23 +32,30 @@ const DeckSelectDialog: React.FC<DeckSelectDialogProps> = ({
     const db = getDatabase();
     const decksRef = ref(db, "decks");
 
-    const unsubscribe = onValue(decksRef, (snapshot) => {
-      const data = snapshot.val() as Record<string, any> | null;
+    const unsubscribe = onValue(
+      decksRef,
+      (snapshot) => {
+        const data = snapshot.val() as Record<string, any> | null;
 
-      const allDecks: Deck[] = data
-        ? Object.entries(data).map(([deckId, deck]) => ({
-            deckId,
-            ...deck,
-          }))
-        : [];
+        const allDecks: Deck[] = data
+          ? Object.entries(data).map(([deckId, deck]) => ({
+              deckId,
+              ...deck,
+            }))
+          : [];
 
-      const userDecks = allDecks.filter(
-        (deck) => deck.email === user.email && deck.used === true,
-      );
+        const userDecks = allDecks.filter(
+          (deck) => deck.email === user.email && deck.used === true,
+        );
 
-      setDecks(userDecks);
-      setLoading(false);
-    });
+        setDecks(userDecks);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error reading decks in dialog:", error);
+        setLoading(false);
+      },
+    );
 
     return () => unsubscribe();
   }, [open, user?.email]);

@@ -29,18 +29,25 @@ function RedeemedDecks(): JSX.Element {
     const db = getDatabase();
     const decksRef = ref(db, "decks");
 
-    const unsubscribe = onValue(decksRef, (snapshot) => {
-      const data = snapshot.val() as Record<string, RedeemedDeck> | null;
+    const unsubscribe = onValue(
+      decksRef,
+      (snapshot) => {
+        const data = snapshot.val() as Record<string, RedeemedDeck> | null;
 
-      const allDecks = data ? Object.values(data) : [];
+        const allDecks = data ? Object.values(data) : [];
 
-      const userDecks = allDecks.filter(
-        (deck) => deck.email === user.email && deck.used === true
-      );
+        const userDecks = allDecks.filter(
+          (deck) => deck.email === user.email && deck.used === true,
+        );
 
-      setDecks(userDecks);
-      setLoading(false);
-    });
+        setDecks(userDecks);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error reading decks:", error);
+        setLoading(false);
+      },
+    );
 
     return () => unsubscribe();
   }, [user?.email]);

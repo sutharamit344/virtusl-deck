@@ -28,6 +28,7 @@
       }
     },
     "decks": {
+      ".read": "auth != null",
       "$deckId": {
         ".read": "auth != null",
         ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() === auth.uid || (data.child('roomId').val() !== null && root.child('rooms').child(data.child('roomId').val()).child('players').child(auth.uid).exists()))"
