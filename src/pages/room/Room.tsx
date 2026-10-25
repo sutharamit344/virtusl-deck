@@ -2,12 +2,18 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import Board from "../../components/Board";
 import {
+  clearRoom,
   joinRoom,
   loadRoomRealtime,
   Player,
   resetAllSkipTurn,
   setPlayerSkipTurn,
+  setRoom,
 } from "./roomSlice";
+import {
+  subscribeRoomRealtime,
+  setupPlayerPresence,
+} from "./services/rooms.services";
 import {
   getDeckRealtime,
   handleLayout,
@@ -25,7 +31,7 @@ import Table from "./Table";
 import DropZone from "../../components/common/DropZone";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { Card as CardType } from "../decks/deckModal";
-import { setDeck } from "../decks/deckSlice";
+import { setDeck, clearDeck } from "../decks/deckSlice";
 import Button from "../../components/ui/Button";
 import { toast } from "react-toastify";
 
@@ -157,8 +163,37 @@ const Room: React.FC = () => {
   }, [players, user]);
 
   useEffect(() => {
-    if (roomId) dispatch(loadRoomRealtime(roomId));
+    if (!roomId) return;
+
+    const unsubscribe = subscribeRoomRealtime(
+      roomId,
+      (data) => {
+        if (data) {
+          dispatch(setRoom(data));
+        } else {
+          dispatch(clearRoom());
+        }
+      },
+      (error) => {
+        console.error("Room sync error:", error);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+      dispatch(clearRoom());
+      dispatch(clearDeck());
+    };
   }, [roomId, dispatch]);
+
+  useEffect(() => {
+    if (!roomId || !user?.uid || !allowedIn) return;
+
+    const cleanupPresence = setupPlayerPresence(roomId, user.uid);
+    return () => {
+      cleanupPresence();
+    };
+  }, [roomId, user?.uid, allowedIn]);
 
   useEffect(() => {
     if (!deckId || !roomId) return;
@@ -171,7 +206,8 @@ const Room: React.FC = () => {
   }, [deckId, roomId, dispatch]);
 
   useEffect(() => {
-    if (!roomId || !user) return;
+    if (!roomId || !user || !hostUid) return;
+
     const alreadyJoined = !!players?.[user.uid];
     if (alreadyJoined) {
       setAllowedIn(true);
@@ -179,13 +215,17 @@ const Room: React.FC = () => {
       setCheckingAccess(false);
       return;
     }
-    if (password || password === null) {
+
+    if (password) {
       setShowPasswordDialog(true);
+      setAllowedIn(false);
     } else {
       dispatch(joinRoom({ roomId, user }));
+      setAllowedIn(true);
+      setShowPasswordDialog(false);
     }
     setCheckingAccess(false);
-  }, [roomId, user, players, password, dispatch]);
+  }, [roomId, user, players, password, hostUid, dispatch]);
 
   const handlePasswordSubmit = (enteredPassword: string) => {
     if (enteredPassword === password && user) {

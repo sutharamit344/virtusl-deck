@@ -1,6 +1,59 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { get, push, ref, remove, serverTimestamp } from "firebase/database";
+import {
+  get,
+  onDisconnect,
+  onValue,
+  push,
+  ref,
+  remove,
+  serverTimestamp,
+  set,
+  update,
+} from "firebase/database";
 import { db } from "../../../firebase";
+import { RoomState } from "../roomSlice";
+
+export const subscribeRoomRealtime = (
+  roomId: string,
+  onUpdate: (data: RoomState | null) => void,
+  onError?: (error: Error) => void,
+) => {
+  const roomRef = ref(db, `rooms/${roomId}`);
+  return onValue(
+    roomRef,
+    (snap) => {
+      onUpdate(snap.val() as RoomState | null);
+    },
+    (err) => {
+      if (onError) onError(err);
+    },
+  );
+};
+
+export const setupPlayerPresence = (roomId: string, userId: string) => {
+  const connectedRef = ref(db, ".info/connected");
+  const playerOnlineRef = ref(db, `rooms/${roomId}/players/${userId}/online`);
+  const playerLastSeenRef = ref(
+    db,
+    `rooms/${roomId}/players/${userId}/lastSeen`,
+  );
+
+  const unsub = onValue(connectedRef, (snap) => {
+    if (snap.val() === true) {
+      onDisconnect(playerOnlineRef).set(false);
+      onDisconnect(playerLastSeenRef).set(serverTimestamp());
+
+      set(playerOnlineRef, true);
+      set(playerLastSeenRef, serverTimestamp());
+    }
+  });
+
+  return () => {
+    unsub();
+    set(playerOnlineRef, false);
+    set(playerLastSeenRef, serverTimestamp());
+  };
+};
 
 export const insertRoomHistory = createAsyncThunk(
   "room/insertRoomHistory",
@@ -90,8 +143,23 @@ export const exitRoomSafely = createAsyncThunk(
         };
       }
 
-      // 🔹 Otherwise → remove only this user
-      await remove(ref(db, `rooms/${roomId}/players/${userId}`));
+      // 🔹 Otherwise → remove this user and transfer host if necessary
+      const updates: Record<string, any> = {
+        [`rooms/${roomId}/players/${userId}`]: null,
+      };
+
+      if (roomData.hostUid === userId) {
+        const remainingPlayerIds = playerIds.filter((id) => id !== userId);
+        const nextHostUid = remainingPlayerIds[0];
+        if (nextHostUid) {
+          updates[`rooms/${roomId}/hostUid`] = nextHostUid;
+          updates[`rooms/${roomId}/hostName`] =
+            players[nextHostUid]?.displayName || "Host";
+          updates[`rooms/${roomId}/players/${nextHostUid}/host`] = true;
+        }
+      }
+
+      await update(ref(db), updates);
 
       return {
         roomId,

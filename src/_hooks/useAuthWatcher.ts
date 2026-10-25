@@ -44,16 +44,18 @@ export function useAuthWatcher() {
           };
 
           try {
-            await axios.post(
-              "https://sendwelcomeemail-shakoavcgq-uc.a.run.app",
-              {
+            await set(userRef, userData);
+            // Non-blocking welcome email notification
+            axios
+              .post("https://sendwelcomeemail-shakoavcgq-uc.a.run.app", {
                 email: userData.email,
                 name: userData.name,
-              }
-            );
-
-            await set(userRef, userData);
+              })
+              .catch((emailErr) => {
+                console.warn("Welcome email failed to send:", emailErr);
+              });
           } catch (err) {
+            console.error("Failed to initialize user record:", err);
             dispatch(logoutUser());
             navigate("/login", { replace: true });
             return;

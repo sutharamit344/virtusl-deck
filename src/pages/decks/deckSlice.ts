@@ -77,6 +77,23 @@ const deckSlice = createSlice({
       state.deckInRoom = action.payload.roomId || null;
       state.cards = action.payload.cards || {};
     },
+    clearDeck: (state) => {
+      state.deckId = null;
+      state.deckAccess = "";
+      state.cards = {};
+      state.cardsByLocation = null;
+      state.loading = false;
+      state.error = null;
+      state.reverseorder = {};
+      state.distributionCards = {};
+      state.layout = {
+        slide: {},
+        fanCircle: {},
+      };
+      state.isShuffling = null;
+      state.isDistributing = false;
+      state.deckInRoom = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -94,6 +111,6 @@ const deckSlice = createSlice({
   },
 });
 
-export const { setDeck } = deckSlice.actions;
+export const { setDeck, clearDeck } = deckSlice.actions;
 
 export default deckSlice.reducer;

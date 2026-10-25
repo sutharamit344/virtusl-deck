@@ -27,8 +27,14 @@ function generateDeckId(prefix = "DECK") {
 exports.gumroadWebhook = functions.https.onRequest(async (req, res) => {
   console.log("🔔 Webhook received:", req.body);
 
-  const { email, purchase_id, product_name, license_key, short_product_id } =
+  const { email, purchase_id, product_name, license_key, short_product_id, seller_id } =
     req.body;
+
+  // Optional seller_id verification when configured in environment
+  if (process.env.GUMROAD_SELLER_ID && seller_id !== process.env.GUMROAD_SELLER_ID) {
+    console.warn("⚠️ Unauthorized seller ID in webhook.");
+    return res.status(403).send("Unauthorized seller.");
+  }
 
   if (!email || !short_product_id) {
     console.warn("⚠️ Missing email or short_product_id.");

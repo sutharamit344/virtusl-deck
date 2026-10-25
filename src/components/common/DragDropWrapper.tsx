@@ -13,7 +13,11 @@ import {
   DragCancelEvent,
 } from "@dnd-kit/core";
 import { restrictToWindowEdges } from "@dnd-kit/modifiers";
-import { updateAllCards } from "../../pages/decks/services/decks.services";
+import {
+  moveCardAtomic,
+  movePileAtomic,
+  updateAllCards,
+} from "../../pages/decks/services/decks.services";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { Card } from "../../pages/decks/deckModal";
 import { insertRoomHistory } from "../../pages/room/services/rooms.services";
@@ -60,43 +64,28 @@ const DragDropWrapper: React.FC<DragDropWrapperProps> = ({
 
     if (currentCard?.locationPath === newLocation) return;
     if (activeType === "card" && currentCard) {
-      if (!newLocation || newLocation === currentLoc) return;
-
-      const remainingInOldPile = Object.values(cards)
-        .filter(
-          (card) =>
-            card.locationPath === currentLoc && card.id !== currentCard.id,
-        )
-        .sort((a, b) => a.order - b.order);
-
-      const reorderedOldPile = Object.fromEntries(
-        remainingInOldPile.map((card, index) => [
-          card.id,
-          { ...card, order: index },
-        ]),
-      );
+      if (!newLocation || !currentLoc || newLocation === currentLoc) return;
 
       const newOrder = Object.values(cards).filter(
         (card) => card.locationPath === newLocation,
       ).length;
 
-      const movedCardUpdate = {
-        [currentCard.id]: {
-          ...currentCard,
-          locationPath: newLocation,
-          order: newOrder,
-        },
-      };
+      const isHand = newLocation.endsWith("-hand-pile");
+      const hand = isHand && roomId
+        ? newLocation.replace(`${roomId}-`, "").replace("-hand-pile", "")
+        : null;
 
       const result = await dispatch(
-        updateAllCards({
+        moveCardAtomic({
           deckId,
-          updatedCards: {
-            ...reorderedOldPile,
-            ...movedCardUpdate,
-          },
+          cardId: currentCard.id,
+          expectedOldLocation: currentLoc,
+          newLocation,
+          newOrder,
+          hand,
         }),
       );
+
       if (result.meta.requestStatus === "fulfilled" && roomId) {
         dispatch(
           insertRoomHistory({
@@ -123,43 +112,19 @@ const DragDropWrapper: React.FC<DragDropWrapperProps> = ({
         return;
       }
 
-      const movedIds = new Set(Object.values(pile).map((card) => card.id));
-
-      const remainingInOldPile = Object.values(cards)
-        .filter(
-          (card) =>
-            card.locationPath === pileLocation && !movedIds.has(card.id),
-        )
-        .sort((a, b) => a.order - b.order);
-
-      const reorderedOldPile = Object.fromEntries(
-        remainingInOldPile.map((card, index) => [
-          card.id,
-          { ...card, order: index },
-        ]),
-      );
-
-      let newOrder = Object.values(cards).filter(
+      const pileCards = Object.values(pile);
+      const cardIds = pileCards.map((card) => card.id);
+      const startingOrder = Object.values(cards).filter(
         (card) => card.locationPath === newLocation,
       ).length;
 
-      const movedCards = Object.fromEntries(
-        Object.values(pile).map((card) => [
-          card.id,
-          {
-            ...card,
-            locationPath: newLocation,
-            order: newOrder++,
-          },
-        ]),
-      );
       const result = await dispatch(
-        updateAllCards({
+        movePileAtomic({
           deckId,
-          updatedCards: {
-            ...reorderedOldPile,
-            ...movedCards,
-          },
+          cardIds,
+          expectedOldLocation: pileLocation,
+          newLocation,
+          startingOrder,
         }),
       );
 

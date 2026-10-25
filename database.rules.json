@@ -1,30 +1,40 @@
 {
   "rules": {
-    ".read": "auth != null",
     "users": {
       "$uid": {
+        ".read": "auth != null",
         ".write": "auth != null && auth.uid === $uid"
       }
     },
     "rooms": {
+      ".read": "auth != null",
       "$roomId": {
+        ".read": "auth != null",
         ".write": "auth != null && (!data.exists() || data.child('hostUid').val() === auth.uid || data.child('players').child(auth.uid).exists())",
+        "hostUid": {
+          ".write": "auth != null && (!data.exists() || data.val() === auth.uid)"
+        },
+        "settings": {
+          ".write": "auth != null && (!data.parent().exists() || data.parent().child('hostUid').val() === auth.uid)"
+        },
         "players": {
           "$uid": {
             ".write": "auth != null && (auth.uid === $uid || data.parent().parent().child('hostUid').val() === auth.uid)"
           }
         },
         "history": {
-          ".write": "auth != null"
+          ".write": "auth != null && data.parent().child('players').child(auth.uid).exists()"
         }
       }
     },
     "decks": {
       "$deckId": {
-        ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() === auth.uid || data.child('roomId').val() !== null)"
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() === auth.uid || (data.child('roomId').val() !== null && root.child('rooms').child(data.child('roomId').val()).child('players').child(auth.uid).exists()))"
       }
     },
     "deckstore": {
+      ".read": "auth != null",
       ".write": false
     }
   }

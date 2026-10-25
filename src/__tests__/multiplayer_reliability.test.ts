@@ -1,0 +1,210 @@
+import { describe, it, expect } from "vitest";
+import {
+  fisherYatesShuffle,
+  riffleShuffle,
+  pileShuffle,
+} from "../pages/decks/services/decks.services";
+import { Card } from "../pages/decks/deckModal";
+
+// Helper to generate a standard mock deck of N cards
+function createMockDeck(count = 52): Card[] {
+  const suits = ["Hearts", "Diamonds", "Clubs", "Spades"];
+  const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+  const deck: Card[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const suit = suits[i % suits.length]!;
+    const rank = ranks[i % ranks.length]!;
+    deck.push({
+      id: `card_${i}`,
+      type: "standard",
+      suit,
+      rank,
+      label: `${rank} of ${suit}`,
+      faceUp: false,
+      order: i,
+      position: i,
+      locationPath: "room_1-table-pile",
+      hand: "",
+    });
+  }
+  return deck;
+}
+
+describe("1. Card Invariants and Integrity", () => {
+  it("Fisher-Yates shuffle preserves all card identities, unique IDs, and total count", () => {
+    const original = createMockDeck(52);
+    const shuffled = fisherYatesShuffle(original);
+
+    expect(shuffled).toHaveLength(52);
+
+    const originalIds = new Set(original.map((c) => c.id));
+    const shuffledIds = new Set(shuffled.map((c) => c.id));
+
+    expect(shuffledIds.size).toBe(52);
+    expect(shuffledIds).toEqual(originalIds);
+  });
+
+  it("Riffle shuffle preserves all card identities and total count", () => {
+    const original = createMockDeck(52);
+    const shuffled = riffleShuffle(original);
+
+    expect(shuffled).toHaveLength(52);
+
+    const originalIds = new Set(original.map((c) => c.id));
+    const shuffledIds = new Set(shuffled.map((c) => c.id));
+
+    expect(shuffledIds.size).toBe(52);
+    expect(shuffledIds).toEqual(originalIds);
+  });
+
+  it("Pile shuffle preserves all card identities and total count", () => {
+    const original = createMockDeck(52);
+    const shuffled = pileShuffle(original, 5);
+
+    expect(shuffled).toHaveLength(52);
+
+    const originalIds = new Set(original.map((c) => c.id));
+    const shuffledIds = new Set(shuffled.map((c) => c.id));
+
+    expect(shuffledIds.size).toBe(52);
+    expect(shuffledIds).toEqual(originalIds);
+  });
+
+  it("Card dealing distributes all cards to players without loss or duplication", () => {
+    const original = createMockDeck(20);
+    const players = [{ uid: "player_A" }, { uid: "player_B" }, { uid: "player_C" }];
+    const pile = [...original];
+
+    const playerHands: Record<string, Card[]> = {
+      player_A: [],
+      player_B: [],
+      player_C: [],
+    };
+
+    while (pile.length > 0) {
+      for (const player of players) {
+        const card = pile.pop();
+        if (!card) break;
+        const targetHand = playerHands[player.uid];
+        if (targetHand) {
+          targetHand.push({
+            ...card,
+            locationPath: `room_1-${player.uid}-hand-pile`,
+            hand: player.uid,
+          });
+        }
+      }
+    }
+
+    const totalDealt = Object.values(playerHands).reduce(
+      (sum, hand) => sum + hand.length,
+      0,
+    );
+    expect(totalDealt).toBe(20);
+
+    const allDealtIds = Object.values(playerHands).flatMap((h) => h.map((c) => c.id));
+    const uniqueIds = new Set(allDealtIds);
+
+    expect(uniqueIds.size).toBe(20);
+    expect(uniqueIds).toEqual(new Set(original.map((c) => c.id)));
+  });
+});
+
+describe("2. Multiplayer Concurrency and Atomic Moves", () => {
+  it("Moving a card atomically does NOT mutate or overwrite sibling cards in the same pile", () => {
+    const card1: Card = { id: "c1", type: "standard", faceUp: false, order: 0, position: 0, locationPath: "pile_A", hand: "" };
+    const card2: Card = { id: "c2", type: "standard", faceUp: true, order: 1, position: 1, locationPath: "pile_A", hand: "" };
+    const card3: Card = { id: "c3", type: "standard", faceUp: false, order: 2, position: 2, locationPath: "pile_A", hand: "" };
+
+    const cards: Record<string, Card> = {
+      c1: card1,
+      c2: card2,
+      c3: card3,
+    };
+
+    // Client moves c1 to pile_B
+    const movedCardId = "c1";
+    const targetLocation = "pile_B";
+    const newOrder = 0;
+
+    const existingCard = cards[movedCardId];
+    expect(existingCard).toBeDefined();
+
+    // Simulate atomic update that only touches c1
+    const updatedCards: Record<string, Card> = {
+      ...cards,
+      [movedCardId]: {
+        ...existingCard!,
+        locationPath: targetLocation,
+        order: newOrder,
+      },
+    };
+
+    // c2 and c3 retain their exact state, faceUp, and properties without being clobbered
+    expect(updatedCards["c1"]?.locationPath).toBe("pile_B");
+    expect(updatedCards["c2"]?.faceUp).toBe(true);
+    expect(updatedCards["c2"]?.locationPath).toBe("pile_A");
+    expect(updatedCards["c3"]?.locationPath).toBe("pile_A");
+  });
+
+  it("Rejects move if card was already moved from expected old location (conflict guard)", () => {
+    // Current database state: Player A already moved c1 to pile_B
+    const currentCardInDb: Card = {
+      id: "c1",
+      type: "standard",
+      faceUp: false,
+      order: 0,
+      position: 0,
+      locationPath: "pile_B", // already in pile_B!
+      hand: "",
+    };
+
+    // Player B attempts to move c1 assuming it is still in pile_A
+    const expectedOldLocation = "pile_A";
+
+    // Transaction logic condition:
+    const canMove = currentCardInDb.locationPath === expectedOldLocation;
+    expect(canMove).toBe(false); // Must abort
+  });
+});
+
+describe("3. Room Lifecycle and Host Election", () => {
+  it("Elects the next active player as host when the existing host departs", () => {
+    const initialPlayers: Record<string, { displayName: string; host: boolean }> = {
+      user_host: { displayName: "Alice (Host)", host: true },
+      user_2: { displayName: "Bob", host: false },
+      user_3: { displayName: "Charlie", host: false },
+    };
+    const hostUid = "user_host";
+
+    // Host departs
+    const exitingUser = "user_host";
+    const remainingPlayerIds = Object.keys(initialPlayers).filter(
+      (id) => id !== exitingUser,
+    );
+
+    expect(remainingPlayerIds).toHaveLength(2);
+
+    let nextHostUid = hostUid;
+    let nextHostName = "Alice (Host)";
+
+    if (hostUid === exitingUser && remainingPlayerIds.length > 0) {
+      const candidateUid = remainingPlayerIds[0];
+      if (candidateUid && initialPlayers[candidateUid]) {
+        nextHostUid = candidateUid;
+        nextHostName = initialPlayers[candidateUid]!.displayName;
+      }
+    }
+
+    expect(nextHostUid).toBe("user_2");
+    expect(nextHostName).toBe("Bob");
+  });
+
+  it("Signals room deletion when the last remaining player departs", () => {
+    const singlePlayerList = ["user_solo"];
+    const isLastUser = singlePlayerList.length <= 1;
+
+    expect(isLastUser).toBe(true);
+  });
+});

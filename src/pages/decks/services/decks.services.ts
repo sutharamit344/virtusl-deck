@@ -1,4 +1,4 @@
-import { get, onValue, ref, set, update } from "firebase/database";
+import { get, onValue, ref, runTransaction, set, update } from "firebase/database";
 import { db } from "../../../firebase";
 import { Player, updateRoomSettings } from "../../room/roomSlice";
 import { Card } from "../deckModal";
@@ -211,7 +211,7 @@ export const shuffleAllOnce = createAsyncThunk<
   },
 );
 
-function fisherYatesShuffle(deck: any[]): Card[] {
+export function fisherYatesShuffle(deck: any[]): Card[] {
   const array: any = [...deck];
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -220,7 +220,7 @@ function fisherYatesShuffle(deck: any[]): Card[] {
   return array;
 }
 
-function riffleShuffle(deck: any[]): Card[] {
+export function riffleShuffle(deck: any[]): Card[] {
   const half = Math.floor(deck.length / 2);
   const left = deck.slice(0, half);
   const right = deck.slice(half);
@@ -232,7 +232,7 @@ function riffleShuffle(deck: any[]): Card[] {
   return result;
 }
 
-function pileShuffle(deck: any[], piles: any = 5): Card[] {
+export function pileShuffle(deck: any[], piles: any = 5): Card[] {
   const pileArray: any = Array.from({ length: piles }, () => []);
   for (let i: any = 0; i < deck.length; i++) {
     pileArray[i % piles].push(deck[i]);
@@ -325,6 +325,89 @@ export const updateAllCards = createAsyncThunk(
     try {
       await update(ref(db, `decks/${deckId}/cards`), updatedCards);
       return updatedCards;
+    } catch (error) {
+      const err = error as Error;
+      return thunkAPI.rejectWithValue(err.message);
+    }
+  },
+);
+
+export interface MoveCardAtomicArgs {
+  deckId: string;
+  cardId: string;
+  expectedOldLocation: string;
+  newLocation: string;
+  newOrder: number;
+  hand?: string | null;
+}
+
+export const moveCardAtomic = createAsyncThunk<
+  Card,
+  MoveCardAtomicArgs,
+  { rejectValue: string }
+>(
+  "deck/moveCardAtomic",
+  async (
+    { deckId, cardId, expectedOldLocation, newLocation, newOrder, hand },
+    thunkAPI,
+  ) => {
+    try {
+      const cardRef = ref(db, `decks/${deckId}/cards/${cardId}`);
+      const txResult = await runTransaction(cardRef, (current: Card | null) => {
+        if (!current) return current;
+        // Verify card is still at the location user dragged from (prevents concurrent overwrite / race conditions)
+        if (current.locationPath !== expectedOldLocation) {
+          return; // Aborts transaction
+        }
+        return {
+          ...current,
+          locationPath: newLocation,
+          order: newOrder,
+          hand: hand !== undefined ? hand : current.hand || null,
+        };
+      });
+
+      if (!txResult.committed || !txResult.snapshot.exists()) {
+        return thunkAPI.rejectWithValue(
+          "Move rejected: Card was already moved or does not exist",
+        );
+      }
+
+      return txResult.snapshot.val() as Card;
+    } catch (error) {
+      const err = error as Error;
+      return thunkAPI.rejectWithValue(err.message);
+    }
+  },
+);
+
+export interface MovePileAtomicArgs {
+  deckId: string;
+  cardIds: string[];
+  expectedOldLocation: string;
+  newLocation: string;
+  startingOrder: number;
+}
+
+export const movePileAtomic = createAsyncThunk<
+  { cardIds: string[]; newLocation: string },
+  MovePileAtomicArgs,
+  { rejectValue: string }
+>(
+  "deck/movePileAtomic",
+  async (
+    { deckId, cardIds, expectedOldLocation, newLocation, startingOrder },
+    thunkAPI,
+  ) => {
+    try {
+      const updates: Record<string, any> = {};
+      cardIds.forEach((cardId, index) => {
+        updates[`decks/${deckId}/cards/${cardId}/locationPath`] = newLocation;
+        updates[`decks/${deckId}/cards/${cardId}/order`] = startingOrder + index;
+      });
+
+      await update(ref(db), updates);
+      return { cardIds, newLocation };
     } catch (error) {
       const err = error as Error;
       return thunkAPI.rejectWithValue(err.message);
