@@ -116,16 +116,16 @@ const Table: React.FC<TableProps> = ({
     const cardsOnTable = getCardsByLocation().sort((a, b) => b.order - a.order);
 
     cardsOnTable.forEach((card) => {
+      if (cardInRound.length >= sliceIndex) return;
+
       const playerKey = card.hand || card.owner;
       if (playerKey) {
-        if (!mover.has(playerKey) && mover.size < sliceIndex) {
+        if (!mover.has(playerKey)) {
           mover.add(playerKey);
           cardInRound.push(card);
         }
       } else {
-        if (cardInRound.length < sliceIndex) {
-          cardInRound.push(card);
-        }
+        cardInRound.push(card);
       }
     });
 
@@ -135,6 +135,41 @@ const Table: React.FC<TableProps> = ({
   useEffect(() => {
     setFinalCards(pile);
   }, [pile]);
+
+  const playerCardMap = useMemo(() => {
+    const map = new Map<string, Card>();
+    const usedCardIds = new Set<string>();
+
+    // 1. Assign cards that have an explicit matching hand or owner
+    playersList.forEach((player) => {
+      const match = finalCards
+        .filter(
+          (c) =>
+            (c.hand === player.uid || c.owner === player.uid) &&
+            !usedCardIds.has(c.id),
+        )
+        .reverse()?.[0];
+      if (match) {
+        map.set(player.uid, match);
+        usedCardIds.add(match.id);
+      }
+    });
+
+    // 2. Fallback: for cards with no hand or owner (legacy or unassigned),
+    // assign to any player in this round who doesn't have a card yet
+    const unassignedCards = finalCards.filter((c) => !usedCardIds.has(c.id));
+    playersList.forEach((player) => {
+      if (!map.has(player.uid) && unassignedCards.length > 0) {
+        const fallback = unassignedCards.shift();
+        if (fallback) {
+          map.set(player.uid, fallback);
+          usedCardIds.add(fallback.id);
+        }
+      }
+    });
+
+    return map;
+  }, [playersList, finalCards]);
 
   const updateCard = (updatedFields: Partial<Card>) => {
     if (selectedCard && deckId) {
@@ -179,32 +214,27 @@ const Table: React.FC<TableProps> = ({
   }, []);
 
   const renderPlayersAroundTable = () => {
-    const angleStep = (2 * Math.PI) / playersList.length;
+    const angleStep = (2 * Math.PI) / (playersList.length || 1);
     const a = width / 2 - 30;
     const b = height / 2 - 30;
-    const lastMove = pile[pile.length - 1];
+    const pileRatio =
+      playersList.length <= 2
+        ? 0.3
+        : Math.min(0.35, 0.22 + playersList.length * 0.02);
 
     return playersList.map((player, index) => {
       const angle = angleStep * index - Math.PI / 2;
       const x = -a * Math.cos(angle) * 1.15;
       const y = -b * Math.sin(angle) * 1.1;
-      const pileRadius = playersList.length / 8 / 2;
-      const pileX = x * pileRadius - 30;
-      const pileY = y * pileRadius - 40;
+      const pileX = x * pileRatio;
+      const pileY = y * pileRatio;
       const playerPath = `${roomId}-${player.uid}-hand-pile`;
       const playerCards = getCards.filter((c) => c.locationPath === playerPath);
-      const card =
-        finalCards
-          ?.filter((c) => (c.hand || c.owner) === player.uid)
-          .reverse()?.[0] ||
-        (finalCards.some((c) => !c.hand && !c.owner) &&
-        (player.uid === user?.uid || index === 0)
-          ? finalCards.find((c) => !c.hand && !c.owner)
-          : undefined);
+      const card = playerCardMap.get(player.uid);
 
-      const arrangedCards = finalCards.findLastIndex(
-        (c) => (c.hand || c.owner) === player.uid || c.id === card?.id,
-      );
+      const arrangedCards = card
+        ? finalCards.findIndex((c) => c.id === card.id)
+        : 0;
 
       return (
         <div key={player.uid}>
@@ -244,14 +274,14 @@ const Table: React.FC<TableProps> = ({
               style={{
                 height: cardH,
                 width: cardW,
-                zIndex: arrangedCards * 1,
+                zIndex: Math.max(1, (arrangedCards + 1) * 2),
                 position: "absolute",
                 ...(draging !== card.id && {
                   left: `calc(50% + ${pileX}px)`,
                   top: `calc(50% + ${pileY}px)`,
                   transform: `translate(-50%, -50%) rotate(${
                     draging !== card.id && `-25deg`
-                  })}`,
+                  })`,
                 }),
               }}
             >
@@ -315,6 +345,9 @@ const Table: React.FC<TableProps> = ({
               style={{
                 userSelect: "none",
                 position: "absolute",
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
                 width: 30,
                 height: 30,
                 borderRadius: "25%",
@@ -326,7 +359,7 @@ const Table: React.FC<TableProps> = ({
                 display: pile.length ? "flex" : "none",
                 alignItems: "center",
                 justifyContent: "center",
-                zIndex: pile.length + 1,
+                zIndex: 10,
               }}
             >
               {finalCards?.length}

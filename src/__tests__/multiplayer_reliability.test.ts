@@ -208,3 +208,165 @@ describe("3. Room Lifecycle and Host Election", () => {
     expect(isLastUser).toBe(true);
   });
 });
+
+describe("4. Circular Table Played Cards Resolution", () => {
+  it("Resolves distinct cards for both players when both players have played to table", () => {
+    const playersList = [
+      { uid: "ams_uid", displayName: "Ams" },
+      { uid: "craft_uid", displayName: "Craft" },
+    ];
+
+    const cardsOnTable: Card[] = [
+      {
+        id: "c_ams",
+        suit: "Spades",
+        rank: "9",
+        order: 0,
+        locationPath: "room_1-table-pile",
+        hand: "ams_uid",
+      } as Card,
+      {
+        id: "c_craft",
+        suit: "Hearts",
+        rank: "3",
+        order: 1,
+        locationPath: "room_1-table-pile",
+        hand: "craft_uid",
+      } as Card,
+    ];
+
+    // Simulate Table pile resolution
+    const mover = new Set<string>();
+    const cardInRound: Card[] = [];
+    const sliceIndex = playersList.length || 1;
+    const sorted = [...cardsOnTable].sort((a, b) => b.order - a.order);
+
+    sorted.forEach((card) => {
+      if (cardInRound.length >= sliceIndex) return;
+      const playerKey = card.hand || card.owner;
+      if (playerKey) {
+        if (!mover.has(playerKey)) {
+          mover.add(playerKey);
+          cardInRound.push(card);
+        }
+      } else {
+        cardInRound.push(card);
+      }
+    });
+
+    const finalCards = cardInRound.reverse();
+    expect(finalCards).toHaveLength(2);
+
+    // Simulate playerCardMap resolution
+    const map = new Map<string, Card>();
+    const usedCardIds = new Set<string>();
+
+    playersList.forEach((player) => {
+      const match = finalCards
+        .filter(
+          (c) =>
+            (c.hand === player.uid || c.owner === player.uid) &&
+            !usedCardIds.has(c.id),
+        )
+        .reverse()?.[0];
+      if (match) {
+        map.set(player.uid, match);
+        usedCardIds.add(match.id);
+      }
+    });
+
+    const unassigned = finalCards.filter((c) => !usedCardIds.has(c.id));
+    playersList.forEach((player) => {
+      if (!map.has(player.uid) && unassigned.length > 0) {
+        const fallback = unassigned.shift();
+        if (fallback) {
+          map.set(player.uid, fallback);
+          usedCardIds.add(fallback.id);
+        }
+      }
+    });
+
+    expect(map.get("ams_uid")?.id).toBe("c_ams");
+    expect(map.get("craft_uid")?.id).toBe("c_craft");
+  });
+
+  it("Recovers visibility for the second player even if second card had legacy null hand", () => {
+    const playersList = [
+      { uid: "ams_uid", displayName: "Ams" },
+      { uid: "craft_uid", displayName: "Craft" },
+    ];
+
+    const cardsOnTable: Card[] = [
+      {
+        id: "c_ams",
+        suit: "Spades",
+        rank: "9",
+        order: 0,
+        locationPath: "room_1-table-pile",
+        hand: "ams_uid",
+      } as Card,
+      {
+        id: "c_craft_legacy",
+        suit: "Hearts",
+        rank: "3",
+        order: 1,
+        locationPath: "room_1-table-pile",
+        hand: "", // legacy / null hand!
+      } as Card,
+    ];
+
+    const mover = new Set<string>();
+    const cardInRound: Card[] = [];
+    const sliceIndex = playersList.length || 1;
+    const sorted = [...cardsOnTable].sort((a, b) => b.order - a.order);
+
+    sorted.forEach((card) => {
+      if (cardInRound.length >= sliceIndex) return;
+      const playerKey = card.hand || card.owner;
+      if (playerKey) {
+        if (!mover.has(playerKey)) {
+          mover.add(playerKey);
+          cardInRound.push(card);
+        }
+      } else {
+        cardInRound.push(card);
+      }
+    });
+
+    const finalCards = cardInRound.reverse();
+    expect(finalCards).toHaveLength(2);
+
+    const map = new Map<string, Card>();
+    const usedCardIds = new Set<string>();
+
+    playersList.forEach((player) => {
+      const match = finalCards
+        .filter(
+          (c) =>
+            (c.hand === player.uid || c.owner === player.uid) &&
+            !usedCardIds.has(c.id),
+        )
+        .reverse()?.[0];
+      if (match) {
+        map.set(player.uid, match);
+        usedCardIds.add(match.id);
+      }
+    });
+
+    const unassigned = finalCards.filter((c) => !usedCardIds.has(c.id));
+    playersList.forEach((player) => {
+      if (!map.has(player.uid) && unassigned.length > 0) {
+        const fallback = unassigned.shift();
+        if (fallback) {
+          map.set(player.uid, fallback);
+          usedCardIds.add(fallback.id);
+        }
+      }
+    });
+
+    // Both players must resolve their card, including craft with legacy null hand!
+    expect(map.get("ams_uid")?.id).toBe("c_ams");
+    expect(map.get("craft_uid")?.id).toBe("c_craft_legacy");
+  });
+});
+

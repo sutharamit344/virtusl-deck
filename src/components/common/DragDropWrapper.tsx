@@ -66,14 +66,24 @@ const DragDropWrapper: React.FC<DragDropWrapperProps> = ({
     if (activeType === "card" && currentCard) {
       if (!newLocation || !currentLoc || newLocation === currentLoc) return;
 
-      const newOrder = Object.values(cards).filter(
-        (card) => card.locationPath === newLocation,
-      ).length;
-
+      const isTable =
+        newLocation.endsWith("-table-pile") || newLocation === "table-pile";
       const isHand = newLocation.endsWith("-hand-pile");
       const hand = isHand && roomId
         ? newLocation.replace(`${roomId}-`, "").replace("-hand-pile", "")
-        : (currentCard.hand || user?.uid || null);
+        : isTable
+          ? (user?.uid || currentCard.hand || null)
+          : (currentCard.hand || user?.uid || null);
+
+      const cardsInNewLocation = Object.values(cards).filter(
+        (card) => card.locationPath === newLocation,
+      );
+      const maxOrder = cardsInNewLocation.reduce(
+        (max, c) =>
+          typeof c.order === "number" && c.order > max ? c.order : max,
+        -1,
+      );
+      const newOrder = maxOrder + 1;
 
       const result = await dispatch(
         moveCardAtomic({
