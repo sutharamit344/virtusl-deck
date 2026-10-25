@@ -1,45 +1,29 @@
 import React from "react";
-import { Box, Typography, Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import Button from "./ui/Button";
 
 const NotFound = () => {
   const navigate = useNavigate();
 
   return (
-    <Box
-      sx={{
-        height: "100vh",
-        color: "#E6EDF3",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        textAlign: "center",
-        px: 3,
-      }}
-    >
-      <Typography variant="h1" sx={{ fontSize: "6rem", fontWeight: "bold", color: "#00D8FF" }}>
+    <div className="h-screen text-[#E6EDF3] flex flex-col justify-center items-center text-center px-6">
+      <h1 className="text-8xl font-black text-[#00D8FF] mb-2">
         404
-      </Typography>
-      <Typography variant="h5" sx={{ mb: 2 }}>
+      </h1>
+      <h2 className="text-2xl font-bold mb-2">
         Page Not Found
-      </Typography>
-      <Typography variant="body1" sx={{ mb: 4, maxWidth: 400 }}>
+      </h2>
+      <p className="text-gray-400 mb-6 max-w-[400px] leading-relaxed">
         The page you're looking for doesn't exist or has been moved.
-      </Typography>
+      </p>
       <Button
-        variant="contained"
-        sx={{
-          bgcolor: "#00D8FF",
-          color: "#121212",
-          fontWeight: "bold",
-          "&:hover": { bgcolor: "#00bcd4" },
-        }}
+        variant="primary"
+        className="bg-[#00D8FF] text-[#121212] font-bold px-6 py-2.5 rounded-xl shadow-md hover:bg-cyan-400"
         onClick={() => navigate("/")}
       >
         Go Home
       </Button>
-    </Box>
+    </div>
   );
 };
 

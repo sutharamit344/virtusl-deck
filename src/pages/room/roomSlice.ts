@@ -41,12 +41,27 @@ export interface RoomSettings {
   mode: boolean;
   faceUp: boolean;
   table: TableSettings;
+  private?: boolean;
+  password?: string;
+  allowSpectators?: boolean;
+  shuffleOnJoin?: boolean;
+  allowDuplicates?: boolean;
+  allowDiscard?: boolean;
+  enableLog?: boolean;
+  showLogTop?: boolean;
+  strict?: {
+    card?: {
+      cardFace: boolean;
+    };
+    cardDrag?: boolean;
+  };
 }
 
 export interface RoomState {
   roomId: string | null;
   roomName: string | null;
   hostName: string | null;
+  hostAvatar?: string | null;
   createdAt: string | null;
   deckId: string | null;
   players: Record<string, Player>;

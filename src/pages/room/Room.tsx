@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Box } from "@mui/material";
 import { useParams } from "react-router-dom";
 import Board from "../../components/Board";
 import {
@@ -15,10 +14,10 @@ import {
   togglePileDirection,
 } from "../decks/services/decks.services";
 import PasswordDialog from "./PasswordDialog";
+import { TableSettingsDialog } from "../../components/TableSettingsDialog";
 import Loader from "../../components/common/Loader";
 import DragDropWrapper from "../../components/common/DragDropWrapper";
-import SettingsIcon from "@mui/icons-material/Settings";
-import SkipNextIcon from "@mui/icons-material/SkipNext";
+import { Settings, SkipForward } from "lucide-react";
 import Pile from "../decks/Pile";
 import { MdLoop } from "react-icons/md";
 import { enterFullscreen, getLocationPath } from "../../__Helper/common";
@@ -219,13 +218,11 @@ const Room: React.FC = () => {
 
   return (
     <DragDropWrapper cards={cards} deckId={deckId} roomId={roomId!}>
-      {/* <TableSettingsDialog
+      <TableSettingsDialog
         roomId={roomId!}
         open={showSettings}
         onClose={() => setShowSettings(false)}
-        radius={radius}
-        setRadius={setRadius}
-      /> */}
+      />
       <div
         id="room-root"
         className="flex flex-col h-screen bg-[#121212] text-[#E6EDF3] overflow-hidden p-3 -mb-12"
@@ -298,7 +295,7 @@ const Room: React.FC = () => {
             locationName="Table"
           />
 
-          <Box className="flex relative justify-between">
+          <div className="flex relative justify-between">
             {zone3 && (
               <DropZone
                 id={`${roomId}-reveal-pile`}
@@ -349,7 +346,7 @@ const Room: React.FC = () => {
                 />
               </DropZone>
             )}
-          </Box>
+          </div>
         </div>
 
         {/* Your Hand */}
@@ -369,15 +366,15 @@ const Room: React.FC = () => {
             locationPath={locationPath}
             locationName={`${user?.name}`}
           />
-          <Box className="flex items-center justify-center">
-            <Box className="flex gap-1">
+          <div className="flex items-center justify-center">
+            <div className="flex gap-1">
               <Button
                 variant="secondary"
                 onClick={handleSkipTurn}
                 disabled={!isTurn}
                 className={actionButtonStyle}
               >
-                <SkipNextIcon />
+                <SkipForward size={18} />
               </Button>
               <Button
                 variant="secondary"
@@ -460,11 +457,11 @@ const Room: React.FC = () => {
                   onClick={() => setShowSettings(true)}
                   className={actionButtonStyle}
                 >
-                  <SettingsIcon />
+                  <Settings size={18} />
                 </Button>
               )}
-            </Box>
-          </Box>
+            </div>
+          </div>
         </div>
       </div>
     </DragDropWrapper>

@@ -422,15 +422,15 @@ export const distributeCards = createAsyncThunk(
 
       const deck = Object.values(pile).sort((a, b) => a.order - b.order);
 
-      await update(ref(db, `decks/${deckId}`), { isDistributing: true });
-      await update(ref(db, `decks/${deckId}`), { distributed: true });
-
-      const updates: Record<string, Card> = {};
+      const updates: Record<string, any> = {
+        isDistributing: true,
+        distributed: true,
+      };
 
       const orderByLocation: Record<string, number> = {};
 
       while (deck.length > 0) {
-        for (const player of playersList.map((p) => p)) {
+        for (const player of playersList) {
           const card = deck.pop();
           if (!card) break;
           const hand = player.uid;
@@ -447,13 +447,17 @@ export const distributeCards = createAsyncThunk(
             faceUp,
             hand,
           };
-
-          await new Promise((res) => setTimeout(res, 200));
         }
       }
 
       await update(ref(db, `decks/${deckId}`), updates);
-      await update(ref(db, `decks/${deckId}`), { isDistributing: false });
+
+      // Async cleanup: Clear isDistributing in the database after 3 seconds of client-side animation
+      setTimeout(() => {
+        update(ref(db, `decks/${deckId}`), { isDistributing: false }).catch((err) =>
+          console.error("Failed to reset isDistributing:", err)
+        );
+      }, 3000);
 
       thunkAPI.dispatch(
         updateRoomSettings({
@@ -469,8 +473,10 @@ export const distributeCards = createAsyncThunk(
 
       const cardCounts = Object.values(updates).reduce(
         (acc: any, card) => {
-          if (!acc[card.hand]) acc[card.hand] = 0;
-          acc[card.hand]++;
+          if (card && typeof card === "object" && card.hand) {
+            if (!acc[card.hand]) acc[card.hand] = 0;
+            acc[card.hand]++;
+          }
           return acc;
         },
         {} as Record<string, number>,

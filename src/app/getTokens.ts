@@ -1,4 +1,4 @@
-import { ErrorToast } from "../components/toast/Toasts";
+import { toast } from "react-toastify";
 import { axiosApiInstance } from "./axios";
 import { API_URL } from "./config";
 
@@ -21,7 +21,7 @@ export const getRefreshToken = async () => {
       }
     );
   } catch (error: any) {
-    ErrorToast(error?.response?.data?.msg);
+    toast(error?.response?.data?.msg || "Failed to refresh token");
     console.error(error?.response?.data?.msg);
   }
 };

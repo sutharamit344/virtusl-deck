@@ -1,7 +1,6 @@
 // components/Pile.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useDraggable } from "@dnd-kit/core";
 import DeckCard from "./cards/DeckCard";
 import UnoCard from "./cards/UnoCard";
@@ -288,7 +287,7 @@ const Pile: React.FC<PileProps> = ({
           }
           size="sm"
         >
-          <ChevronLeftIcon />
+          <ChevronLeft />
           <div>{Math.max(startIndex, 0)}</div>
         </Button>
       )}
@@ -583,7 +582,7 @@ const Pile: React.FC<PileProps> = ({
                     variant="secondary"
                     onClick={() => {
                       dispatch(
-                        shuffleAllOnce({ deckId, pile, locationPath, roomId }),
+                        shuffleAllOnce({ deckId, pile, locationPath, roomId: roomId || "" }),
                       );
                     }}
                     size="sm"
@@ -630,7 +629,7 @@ const Pile: React.FC<PileProps> = ({
           }
           size="sm"
         >
-          <ChevronRightIcon />
+          <ChevronRight />
           <div>
             {pile.length - Math.min(startIndex + cardsPerPage, pile.length)}
           </div>

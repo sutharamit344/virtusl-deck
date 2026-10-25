@@ -1,5 +1,5 @@
-import { Button } from "@mui/material";
-import GoogleIcon from "@mui/icons-material/Google";
+import Button from "../../components/ui/Button";
+import { FaGoogle } from "react-icons/fa";
 import { signInWithPopup } from "firebase/auth";
 
 import { auth, googleProvider } from "../../firebase";
@@ -15,20 +15,10 @@ function Googlesignin() {
 
   return (
     <Button
-      variant="contained"
+      variant="primary"
       onClick={handleLogin}
-      startIcon={<GoogleIcon />}
-      sx={{
-        backgroundColor: "#00D8FF",
-        color: "#121212",
-        fontWeight: "bold",
-        "&:hover": {
-          backgroundColor: "#00bcd4",
-        },
-        px: 3,
-        py: 1.2,
-        borderRadius: "12px",
-      }}
+      leftIcon={<FaGoogle />}
+      className="w-full bg-[#00D8FF] text-[#121212] hover:bg-cyan-400 font-bold px-6 py-3 rounded-xl shadow-md transition-all"
     >
       Sign in with Google
     </Button>

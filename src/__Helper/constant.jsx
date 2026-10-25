@@ -1,11 +1,8 @@
-import HomeIcon from "@mui/icons-material/Home";
-import DeckIcon from "@mui/icons-material/Style";
-import GroupIcon from "@mui/icons-material/Group";
-import StorefrontIcon from "@mui/icons-material/Storefront";
+import { Home, Layers, Users, Store } from "lucide-react";
 
 export const navItems = [
-  { label: "Home", value: "/", icon: <HomeIcon /> },
-  { label: "Decks", value: "/decks", icon: <DeckIcon /> },
-  { label: "Rooms", value: "/rooms", icon: <GroupIcon /> },
-  { label: "Store", value: "/store", icon: <StorefrontIcon /> },
+  { label: "Home", value: "/", icon: <Home size={20} /> },
+  { label: "Decks", value: "/decks", icon: <Layers size={20} /> },
+  { label: "Rooms", value: "/rooms", icon: <Users size={20} /> },
+  { label: "Store", value: "/store", icon: <Store size={20} /> },
 ];

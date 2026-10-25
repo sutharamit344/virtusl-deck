@@ -6,7 +6,8 @@ import {
   useEffect,
   useCallback,
 } from "react";
-import { Box, Typography, Avatar, Button, IconButton } from "@mui/material";
+import Avatar from "../../components/ui/Avatar";
+import Button from "../../components/ui/Button";
 import DeckCard from "../decks/cards/DeckCard";
 import UnoCard from "../decks/cards/UnoCard";
 import { updateCardInDeck } from "../decks/services/decks.services";
@@ -211,12 +212,9 @@ const Table: React.FC<TableProps> = ({
             >
               <div style={{ borderRadius: 20, color: "#fff" }}>
                 <Avatar
-                  src={player?.avatar ?? ""}
-                  alt={player.displayName}
-                  sx={{
-                    width: 48,
-                    height: 48,
-                  }}
+                  src={player?.avatar}
+                  name={player.displayName}
+                  className="w-12 h-12"
                 />
                 <div className="flex gap-2">
                   {player.displayName.slice(0, 5)}{" "}
@@ -273,7 +271,7 @@ const Table: React.FC<TableProps> = ({
   };
 
   return (
-    <Box
+    <div
       ref={containerRef}
       className="table-container w-full h-[90%] border-2 border-[#444] rounded-[40%] bg-[#1e1e1e] flex justify-center items-center relative"
     >
@@ -283,8 +281,8 @@ const Table: React.FC<TableProps> = ({
       >
         <HistoryIcon />
       </div>
-      <Box
-        sx={{
+      <div
+        style={{
           width: width / 2,
           height: height / 1.6,
         }}
@@ -341,8 +339,7 @@ const Table: React.FC<TableProps> = ({
           ) : (
             <>
               <Button
-                variant="outlined"
-                color="primary"
+                variant="secondary"
                 onClick={() => setOpenDialog(true)}
               >
                 Add Deck
@@ -360,8 +357,8 @@ const Table: React.FC<TableProps> = ({
             onClose={() => setOpenHistoryDialog(false)}
           />
         </DropZone>
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 

@@ -44,6 +44,8 @@ const Avatar: React.FC<AvatarProps> = ({
       .toUpperCase();
   };
 
+  const [imgError, setImgError] = React.useState(false);
+
   return (
     <div className={`relative inline-block ${className}`}>
       <div
@@ -55,12 +57,12 @@ const Avatar: React.FC<AvatarProps> = ({
         border-1 border-white/10
       `}
       >
-        {src ? (
+        {src && !imgError ? (
           <img
             src={src}
             alt={alt}
             className="w-full h-full object-cover"
-            onError={(e) => (e.currentTarget.style.display = "none")}
+            onError={() => setImgError(true)}
           />
         ) : (
           <span className="font-bold text-slate-400 tracking-tighter italic">

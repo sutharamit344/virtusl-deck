@@ -1,4 +1,3 @@
-import { Box, Typography, Paper } from "@mui/material";
 import { Navigate } from "react-router-dom";
 import Googlesignin from "./Googlesignin";
 import { useAppSelector } from "../../app/hooks";
@@ -12,48 +11,27 @@ function Login(): JSX.Element {
   }
 
   return (
-    <Box
-      sx={{
-        height: "80vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        px: 2,
-      }}
-    >
-      <Paper
-        elevation={6}
-        sx={{
-          p: 4,
-          borderRadius: 5,
-          maxWidth: 420,
-          width: "100%",
-          backdropFilter: "blur(12px)",
-          backgroundColor: "rgba(255, 255, 255, 0.05)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          color: "#fff",
-          textAlign: "center",
-        }}
-      >
-        <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
+    <div className="min-h-[80vh] flex items-center justify-center px-4">
+      <div className="p-8 rounded-2xl max-w-[420px] w-full backdrop-blur-xl bg-white/5 border border-white/10 text-white text-center shadow-2xl">
+        <div className="flex justify-center mb-6">
           <img
             src="https://virtual-deck-52.web.app/vc%20logo.png"
             alt="Virtual Deck Logo"
-            style={{ height: 60 }}
+            className="h-[60px] object-contain"
           />
-        </Box>
+        </div>
 
-        <Typography variant="h4" fontWeight="bold" mb={1}>
+        <h1 className="text-2xl font-bold mb-2 tracking-tight">
           Welcome to Virtual Deck
-        </Typography>
+        </h1>
 
-        <Typography variant="body2" sx={{ color: "#aaa", mb: 3 }}>
+        <p className="text-sm text-gray-400 mb-6 leading-relaxed">
           Sign in to unlock your cards, decks, and rooms.
-        </Typography>
+        </p>
 
         <Googlesignin />
-      </Paper>
-    </Box>
+      </div>
+    </div>
   );
 }
 

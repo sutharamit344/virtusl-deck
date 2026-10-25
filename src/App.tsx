@@ -1,5 +1,4 @@
 import "./App.css";
-import "bootstrap/dist/css/bootstrap.min.css";
 import { Suspense } from "react";
 import Loader from "./components/common/Loader";
 import { ToastContainer } from "react-toastify";

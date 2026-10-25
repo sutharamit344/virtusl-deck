@@ -12,7 +12,7 @@ import { ConfirmationDialog } from "../../components/ui/CustomDialog";
 import NoData from "../../components/common/NoData";
 import { exitRoomSafely, findAllRooms } from "./services/rooms.services";
 import Spinner from "../../components/common/Spinner";
-import { Room, RoomState } from "./roomSlice";
+import { RoomState } from "./roomSlice";
 
 interface Player {
   [key: string]: unknown;
@@ -58,7 +58,7 @@ function ShareButton({ roomId }: { roomId: string }) {
 
 function RoomList(): JSX.Element {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
+  const [roomToDelete, setRoomToDelete] = useState<RoomState | null>(null);
   const user = useAppSelector((state) => state.auth.user);
   const roomsList = useAppSelector((state) => state.room.roomsList);
   const loading = useAppSelector((state) => state.room.loading);
@@ -121,12 +121,12 @@ function RoomList(): JSX.Element {
           <NoData title="No Rooms Found" />
         ) : (
           <div className="grid gap-4 md:grid-cols-2 w-full">
-            {roomsList?.map((room: Room) => (
+            {roomsList?.map((room: RoomState) => (
               <Card key={room.roomId} variant="elevated">
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center gap-3">
                     <Avatar
-                      src={room.hostAvatar}
+                      src={room.hostAvatar || null}
                       name={room.hostName}
                       size="md"
                       status="online"
@@ -161,13 +161,13 @@ function RoomList(): JSX.Element {
                   <div className="flex gap-2 justify-between w-full">
                     <Button
                       size="sm"
-                      onClick={() => handleJoin(room.roomId)}
+                      onClick={() => handleJoin(room.roomId || "")}
                       leftIcon={<MdMeetingRoom size={18} />}
                     >
                       Enter
                     </Button>
 
-                    <ShareButton roomId={room.roomId} />
+                    <ShareButton roomId={room.roomId || ""} />
 
                     <Button
                       size="sm"

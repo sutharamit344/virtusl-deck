@@ -32,7 +32,7 @@ interface DragDropWrapperProps {
     action: string;
     details?: string;
   };
-  roomId: string;
+  roomId?: string;
 }
 
 const DragDropWrapper: React.FC<DragDropWrapperProps> = ({
@@ -97,7 +97,7 @@ const DragDropWrapper: React.FC<DragDropWrapperProps> = ({
           },
         }),
       );
-      if (result.meta.requestStatus === "fulfilled") {
+      if (result.meta.requestStatus === "fulfilled" && roomId) {
         dispatch(
           insertRoomHistory({
             action: historyDetails?.action || "Moved a card",
@@ -163,7 +163,7 @@ const DragDropWrapper: React.FC<DragDropWrapperProps> = ({
         }),
       );
 
-      if (result.meta.requestStatus === "fulfilled") {
+      if (result.meta.requestStatus === "fulfilled" && roomId) {
         const pileCards = Object.values(pile);
         const movedCount = pileCards.length;
         const cardsfaceup = pileCards

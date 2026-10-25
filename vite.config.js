@@ -31,6 +31,9 @@ export default defineConfig({
           },
         ],
       },
+      workbox: {
+        globPatterns: ["**/*.{js,css,html,png,svg,ico}"],
+      },
     }),
   ],
 
@@ -40,8 +43,6 @@ export default defineConfig({
       "react-dom",
       "react-redux",
       "@reduxjs/toolkit",
-      "@mui/material",
-      "@mui/icons-material",
       "firebase/app",
       "firebase/auth",
       "firebase/database",
@@ -55,12 +56,6 @@ export default defineConfig({
         manualChunks: {
           react: ["react", "react-dom"],
           redux: ["react-redux", "@reduxjs/toolkit"],
-          mui: [
-            "@mui/material",
-            "@mui/icons-material",
-            "@emotion/react",
-            "@emotion/styled",
-          ],
           firebase: ["firebase/app", "firebase/auth", "firebase/database"],
           sound: ["use-sound"],
         },

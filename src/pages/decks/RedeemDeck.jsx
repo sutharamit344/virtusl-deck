@@ -1,13 +1,7 @@
 import React, { useState } from "react";
-import {
-  TextField,
-  Button,
-  Box,
-  Typography,
-  Alert,
-} from "@mui/material";
 import { useSelector } from "react-redux";
 import { getDatabase, ref, get, update } from "firebase/database";
+import Button from "../../components/ui/Button";
 
 const RedeemDeck = ({ onRedeemSuccess }) => {
   const [deckId, setDeckId] = useState("");
@@ -93,79 +87,50 @@ const RedeemDeck = ({ onRedeemSuccess }) => {
     }
   };
 
+  const getAlertClasses = () => {
+    const base = "mt-4 p-4 rounded-xl text-sm border font-medium ";
+    if (messageType === "success") {
+      return base + "bg-green-500/10 text-green-400 border-green-500/20";
+    }
+    if (messageType === "error") {
+      return base + "bg-red-500/10 text-red-400 border-red-500/20";
+    }
+    if (messageType === "warning") {
+      return base + "bg-orange-500/10 text-orange-400 border-orange-500/20";
+    }
+    return base + "bg-cyan-500/10 text-cyan-400 border-cyan-500/20";
+  };
+
   return (
-    <Box sx={{ pb: 1 }}>
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
-          gap: 2,
-          mb: 2,
-        }}
-      >
-        <TextField
-          label="Enter Deck ID"
-          variant="outlined"
-          value={deckId}
-          onChange={(e) => setDeckId(e.target.value)}
-          onKeyPress={handleKeyPress}
-          disabled={loading}
-          fullWidth
-          sx={{
-            input: { color: "#fff" },
-            label: { color: "#ccc" },
-            "& .MuiOutlinedInput-root": {
-              "& fieldset": { borderColor: "#444" },
-              "&:hover fieldset": { borderColor: "#888" },
-              "&.Mui-focused fieldset": { borderColor: "#00D8FF" },
-              "&.Mui-disabled fieldset": { borderColor: "#666" },
-            },
-          }}
-        />
+    <div className="pb-1">
+      <div className="flex flex-col sm:flex-row gap-3 mb-2">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            placeholder="Enter Deck ID"
+            value={deckId}
+            onChange={(e) => setDeckId(e.target.value)}
+            onKeyDown={handleKeyPress}
+            disabled={loading}
+            className="w-full h-12 px-4 rounded-xl bg-zinc-900 border border-zinc-800 focus:border-cyan-400 focus:outline-none text-white placeholder-zinc-500 disabled:opacity-50 transition-colors"
+          />
+        </div>
         <Button
-          variant="contained"
+          variant="primary"
           onClick={handleRedeem}
           disabled={loading || !deckId.trim()}
-          sx={{
-            backgroundColor: "#00D8FF",
-            color: "#000",
-            px: 4,
-            minWidth: "120px",
-            height: "56px",
-            "&:hover": {
-              backgroundColor: "#00bcd4",
-            },
-            "&:disabled": {
-              backgroundColor: "#666",
-              color: "#999",
-            },
-          }}
+          className="h-12 px-6 rounded-xl font-bold bg-[#00D8FF] text-[#121212] hover:bg-cyan-400 disabled:bg-zinc-800 disabled:text-zinc-600 transition-colors"
         >
           {loading ? "Processing..." : "Redeem"}
         </Button>
-      </Box>
+      </div>
 
       {message && (
-        <Alert 
-          severity={messageType === "success" ? "success" : 
-                   messageType === "error" ? "error" : 
-                   messageType === "warning" ? "warning" : "info"}
-          sx={{ 
-            mt: 2,
-            borderRadius: "8px",
-            backgroundColor: messageType === "success" 
-              ? "rgba(76, 175, 80, 0.1)" 
-              : messageType === "error"
-              ? "rgba(244, 67, 54, 0.1)"
-              : messageType === "warning"
-              ? "rgba(255, 193, 7, 0.1)"
-              : "rgba(33, 150, 243, 0.1)",
-          }}
-        >
+        <div className={getAlertClasses()}>
           {message}
-        </Alert>
+        </div>
       )}
-    </Box>
+    </div>
   );
 };
 
