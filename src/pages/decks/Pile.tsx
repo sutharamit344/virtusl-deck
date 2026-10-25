@@ -15,12 +15,11 @@ import {
 } from "./services/decks.services";
 import useSound from "use-sound";
 import { playExclusiveSound } from "../../components/common/playExclusiveSound";
-import { collectCards, Player, updateRoomSettings } from "../room/roomSlice";
+import { collectCards, Player } from "../room/roomSlice";
 import { MdLoop } from "react-icons/md";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { Card } from "./deckModal";
 import Button from "../../components/ui/Button";
-import DistributeDialog from "../room/DistributeDialog";
 
 interface PileProps {
   face?: boolean | null;
@@ -67,7 +66,6 @@ const Pile: React.FC<PileProps> = ({
   const [pileMenuAnchor, setPileMenuAnchor] = useState<HTMLElement | null>(
     null,
   );
-  const [showDistributeDialog, setShowDistributeDialog] = useState(false);
   const { settings } = useAppSelector((state) => state.room);
   const mode = settings?.table?.mode || "Stacked";
   const currentCardFace = settings?.table?.cardFace?.[`${mode}_hand`] || {};
@@ -224,23 +222,9 @@ const Pile: React.FC<PileProps> = ({
     setFinalCards(paginatedCards);
   }, [paginatedCards]);
 
-  const handleDistribute = async (
-    batchSize: number = 1,
-    cardsPerPlayer: number | "all" = "all",
-    saveAsDefault: boolean = false,
-  ) => {
+  const handleDistribute = async () => {
     if (!roomId || !playersList || playersList.length === 0 || isDistributing) return;
     try {
-      if (saveAsDefault && roomId) {
-        dispatch(
-          updateRoomSettings({
-            roomId,
-            setting: "distribution",
-            value: { batchSize, cardsPerPlayer },
-          }),
-        );
-      }
-
       if (deckId) {
         await dispatch(
           distributeCards({
@@ -248,12 +232,7 @@ const Pile: React.FC<PileProps> = ({
             roomId,
             pile,
             playersList,
-            settings: {
-              ...settings,
-              distribution: { batchSize, cardsPerPlayer },
-            },
-            batchSize,
-            cardsPerPlayer,
+            settings,
           }),
         ).unwrap();
       }
@@ -597,7 +576,7 @@ const Pile: React.FC<PileProps> = ({
                     <Button
                       variant="secondary"
                       disabled={Boolean(isDistributing)}
-                      onClick={() => setShowDistributeDialog(true)}
+                      onClick={handleDistribute}
                       size="sm"
                       className={`${actionButtonStyle} ${
                         isDistributing ? activeButtonStyle : ""
@@ -636,18 +615,6 @@ const Pile: React.FC<PileProps> = ({
             {pile.length - Math.min(startIndex + cardsPerPage, pile.length)}
           </div>
         </Button>
-      )}
-
-      {roomId && (
-        <DistributeDialog
-          open={showDistributeDialog}
-          onClose={() => setShowDistributeDialog(false)}
-          onDistribute={handleDistribute}
-          pileLength={pile.length}
-          playersList={playersList}
-          initialBatchSize={settings?.distribution?.batchSize || 1}
-          initialCardsPerPlayer={settings?.distribution?.cardsPerPlayer || "all"}
-        />
       )}
     </>
   );

@@ -368,14 +368,17 @@ const Table: React.FC<TableProps> = ({
               cardW={cardW}
               cardH={cardH}
               batchSize={
-                distributionConfig?.batchSize ??
-                settings?.distribution?.batchSize ??
-                1
-              }
-              cardsPerPlayer={
-                distributionConfig?.cardsPerPlayer ??
-                settings?.distribution?.cardsPerPlayer ??
-                "all"
+                (distributionConfig?.random ?? settings?.distribution?.random)
+                  ? 1
+                  : (distributionConfig?.cardsPerRound ??
+                    settings?.distribution?.cardsPerRound ??
+                    Math.max(
+                      1,
+                      Math.floor(
+                        (finalCards?.length || 52) /
+                          Math.max(1, playersList.length),
+                      ),
+                    ))
               }
             />
           )}

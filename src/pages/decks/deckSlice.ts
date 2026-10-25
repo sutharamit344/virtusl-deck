@@ -20,6 +20,8 @@ interface DeckState {
   } | null;
   isDistributing?: boolean;
   distributionConfig?: {
+    random?: boolean;
+    cardsPerRound?: number;
     batchSize?: number;
     cardsPerPlayer?: number | "all";
   } | null;
@@ -40,6 +42,8 @@ export interface DeckData {
   } | null;
   isDistributing?: boolean;
   distributionConfig?: {
+    random?: boolean;
+    cardsPerRound?: number;
     batchSize?: number;
     cardsPerPlayer?: number | "all";
   } | null;

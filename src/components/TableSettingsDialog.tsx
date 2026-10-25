@@ -24,7 +24,18 @@ export const TableSettingsDialog: React.FC<SettingsDialogProps> = ({
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
   const user = useSelector((state: RootState) => state.auth.user);
-  const { settings, hostUid } = useSelector((state: RootState) => state.room);
+  const { settings, hostUid, players } = useSelector(
+    (state: RootState) => state.room,
+  );
+  const cards = useSelector((state: RootState) => state.deck.cards);
+
+  const playersList = Object.values(players || {});
+  const playerCount = Math.max(1, playersList.length);
+  const cardCount = Object.keys(cards || {}).length || 52;
+  const defaultCardsPerPlayer = Math.floor(cardCount / playerCount);
+  const remainderCards = cardCount % playerCount;
+  const currentCount =
+    settings?.distribution?.cardsPerRound ?? defaultCardsPerPlayer;
 
   const handleChange = (setting: string, value: any) => {
     dispatch(updateRoomSettings({ roomId, setting, value }) as any);
@@ -406,127 +417,119 @@ export const TableSettingsDialog: React.FC<SettingsDialogProps> = ({
                 Card Distribution Settings
               </h3>
 
-              {/* Dealing Batch Size */}
-              <div className="space-y-2">
-                <span className="block text-sm font-semibold text-gray-300">
-                  Default Dealing Batch Size (Cards dealt per round)
-                </span>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {[1, 2, 3, 4, 5, 6].map((count) => {
-                    const currentBatch = settings?.distribution?.batchSize ?? 1;
-                    const isSelected = currentBatch === count;
-                    return (
-                      <button
-                        key={count}
-                        type="button"
-                        onClick={() =>
-                          handleChange("distribution", {
-                            ...settings?.distribution,
-                            batchSize: count,
-                          })
-                        }
-                        className={`py-2 px-3 rounded-lg border text-center font-bold text-xs transition-all ${
-                          isSelected
-                            ? "border-cyan-400 bg-cyan-400/20 text-cyan-400"
-                            : "border-zinc-800 bg-zinc-900/60 text-gray-300 hover:border-zinc-700"
-                        }`}
-                      >
-                        {count === 1 ? "1 by 1" : `${count} by ${count}`}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-gray-400">
-                  Number of cards dealt to each player per round (e.g. 1-by-1, 2-by-2, 4-by-4). If the deck has fewer cards remaining, the last player safely takes the remaining cards.
-                </p>
-              </div>
-
-              {/* Default Cards per Player Limit */}
-              <div className="space-y-3 border-t border-white/5 pt-4">
-                <span className="block text-sm font-semibold text-gray-300">
-                  Default Cards per Player Limit
-                </span>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-300">
-                    <input
-                      type="radio"
-                      name="distLimitMode"
-                      checked={
-                        !settings?.distribution?.cardsPerPlayer ||
-                        settings?.distribution?.cardsPerPlayer === "all"
-                      }
-                      onChange={() =>
-                        handleChange("distribution", {
-                          ...settings?.distribution,
-                          cardsPerPlayer: "all",
-                        })
-                      }
-                      className="text-cyan-400 focus:ring-cyan-400/30 border-zinc-800"
-                    />
-                    <span>All Cards (split full deck evenly)</span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-300">
-                    <input
-                      type="radio"
-                      name="distLimitMode"
-                      checked={
-                        typeof settings?.distribution?.cardsPerPlayer ===
-                          "number" &&
-                        settings?.distribution?.cardsPerPlayer > 0
-                      }
-                      onChange={() =>
-                        handleChange("distribution", {
-                          ...settings?.distribution,
-                          cardsPerPlayer: 5,
-                        })
-                      }
-                      className="text-cyan-400 focus:ring-cyan-400/30 border-zinc-800"
-                    />
-                    <span>Custom Limit per Player</span>
-                  </label>
-                </div>
-
-                {typeof settings?.distribution?.cardsPerPlayer === "number" && (
-                  <div className="flex flex-wrap items-center gap-3 pt-2">
-                    {[2, 3, 5, 7, 13].map((num) => (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() =>
-                          handleChange("distribution", {
-                            ...settings?.distribution,
-                            cardsPerPlayer: num,
-                          })
-                        }
-                        className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
-                          settings?.distribution?.cardsPerPlayer === num
-                            ? "border-cyan-400 bg-cyan-400 text-black font-bold"
-                            : "border-zinc-800 bg-zinc-900 text-gray-300 hover:border-zinc-700"
-                        }`}
-                      >
-                        {num} Cards
-                      </button>
-                    ))}
-                    <div className="flex items-center gap-2 ml-2">
-                      <span className="text-xs text-gray-400">Custom:</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={52}
-                        value={settings?.distribution?.cardsPerPlayer || 5}
-                        onChange={(e) =>
-                          handleChange("distribution", {
-                            ...settings?.distribution,
-                            cardsPerPlayer: Math.max(1, Number(e.target.value)),
-                          })
-                        }
-                        className="w-16 px-2 py-1 bg-zinc-900 border border-zinc-700 rounded text-center text-xs text-white"
-                      />
-                    </div>
+              {/* 1. Random Distribution Checkbox (default unchecked) */}
+              <div className="p-4 rounded-xl bg-zinc-900/80 border border-white/10 space-y-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!settings?.distribution?.random}
+                    onChange={(e) => {
+                      handleChange("distribution", {
+                        ...settings?.distribution,
+                        random: e.target.checked,
+                      });
+                    }}
+                    className="w-4 h-4 rounded border-zinc-700 text-[#00D8FF] focus:ring-[#00D8FF]/30 accent-[#00D8FF]"
+                  />
+                  <div>
+                    <span className="text-sm font-semibold text-gray-200">
+                      Random Distribution
+                    </span>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {settings?.distribution?.random
+                        ? "Cards will be distributed randomly to players."
+                        : "Cards will be distributed by set in order."}
+                    </p>
                   </div>
-                )}
+                </label>
               </div>
+
+              {/* 2. If Unchecked: Distribute by Set with Counter */}
+              {!settings?.distribution?.random && (
+                <div className="p-4 rounded-xl bg-zinc-900/80 border border-white/10 space-y-4">
+                  <div>
+                    <span className="block text-sm font-semibold text-gray-200">
+                      Cards to Distribute in Round to Player
+                    </span>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      How many cards to deal per round to each player.
+                    </p>
+                  </div>
+
+                  {/* Counter with [-] and [+] buttons */}
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = Math.max(1, currentCount - 1);
+                        handleChange("distribution", {
+                          ...settings?.distribution,
+                          cardsPerRound: next,
+                        });
+                      }}
+                      disabled={currentCount <= 1}
+                      className="w-10 h-10 rounded-lg border border-zinc-700 bg-zinc-800 text-white font-bold text-lg flex items-center justify-center hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      -
+                    </button>
+
+                    <div className="min-w-[80px] text-center">
+                      <span className="text-2xl font-bold text-[#00D8FF]">
+                        {currentCount}
+                      </span>
+                      <span className="block text-[11px] text-gray-400">
+                        {currentCount === 1 ? "card / round" : "cards / round"}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = Math.min(cardCount, currentCount + 1);
+                        handleChange("distribution", {
+                          ...settings?.distribution,
+                          cardsPerRound: next,
+                        });
+                      }}
+                      disabled={currentCount >= cardCount}
+                      className="w-10 h-10 rounded-lg border border-zinc-700 bg-zinc-800 text-white font-bold text-lg flex items-center justify-center hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      +
+                    </button>
+
+                    {currentCount !== defaultCardsPerPlayer && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleChange("distribution", {
+                            ...settings?.distribution,
+                            cardsPerRound: defaultCardsPerPlayer,
+                          });
+                        }}
+                        className="text-xs text-[#00D8FF] hover:underline px-2.5 py-1.5 rounded bg-[#00D8FF]/10 ml-auto"
+                      >
+                        Reset to default ({defaultCardsPerPlayer})
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Proper Non-Decimal Division Note */}
+                  <div className="pt-3 border-t border-white/5 text-xs text-gray-400 space-y-1.5">
+                    <div className="text-gray-300 font-medium flex items-center justify-between">
+                      <span>Default count rule:</span>
+                      <span className="text-[#00D8FF] font-semibold">
+                        {cardCount} cards ÷ {playerCount} player{playerCount > 1 ? "s" : ""} = {defaultCardsPerPlayer}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-400 leading-relaxed">
+                      Cards are divided evenly without decimals.
+                      {remainderCards > 0
+                        ? ` The remaining ${remainderCards} card${remainderCards > 1 ? "s are" : " is"} given to the last player so all cards are completely distributed.`
+                        : " All cards divide evenly among players."}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

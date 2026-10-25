@@ -38,8 +38,8 @@ export interface TableSettings {
 }
 
 export interface DistributionSettings {
-  batchSize?: number; // 1, 2, 3, 4, 5, etc. (deal 1 by 1, 2 by 2, etc.)
-  cardsPerPlayer?: number | "all"; // max cards per player or "all"
+  random?: boolean; // default false (unchecked): distribute randomly if true
+  cardsPerRound?: number; // how many cards to distribute in round to player (counter, default 1)
 }
 
 export interface RoomSettings {

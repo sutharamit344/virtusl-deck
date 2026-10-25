@@ -578,95 +578,65 @@ describe("5. Card Distribution and Stacking Animation Logic", () => {
     }
   });
 
-  it("deals cards in batches (e.g. 2 by 2 or 4 by 4) and allows last player to take remaining cards", () => {
-    // 7 cards in deck, 2 players, batchSize = 4, cardsPerPlayer = "all"
-    const deck = createMockDeck(7);
-    const playersList = [
-      { uid: "p1", displayName: "P1" },
-      { uid: "p2", displayName: "P2" },
-    ];
-    const roomId = "room_batch";
-    const batchSize = 4;
-    const maxPerPlayer = Infinity;
+  it("distributes with integer floor division and gives remaining cards to the last player", () => {
+    // 52 cards, 3 players -> 17, 17, 18
+    const totalCards = 52;
+    const numPlayers = 3;
+    const baseCount = Math.floor(totalCards / numPlayers);
+    const remainder = totalCards % numPlayers;
 
-    const deckCopy = [...deck].sort((a, b) => a.order - b.order);
-    const updates: Record<string, any> = {};
-    const orderByLocation: Record<string, number> = {};
-    const cardsDealtCount: Record<string, number> = { p1: 0, p2: 0 };
+    expect(baseCount).toBe(17);
+    expect(remainder).toBe(1);
 
-    while (
-      deckCopy.length > 0 &&
-      playersList.some((p) => (cardsDealtCount[p.uid] ?? 0) < maxPerPlayer)
-    ) {
-      for (const player of playersList) {
-        if (deckCopy.length === 0) break;
-        const currentCount = cardsDealtCount[player.uid] || 0;
-        if (currentCount >= maxPerPlayer) continue;
+    const quotas = [0, 1, 2].map((idx) =>
+      idx === numPlayers - 1 ? baseCount + remainder : baseCount,
+    );
 
-        const remainingNeeded = maxPerPlayer - currentCount;
-        const toDeal = Math.min(batchSize, deckCopy.length, remainingNeeded);
-        const hand = player.uid;
-        const locationPath = `${roomId}-${hand}-hand-pile`;
-
-        if (orderByLocation[locationPath] === undefined) {
-          orderByLocation[locationPath] = 0;
-        }
-
-        for (let b = 0; b < toDeal; b++) {
-          const card = deckCopy.pop();
-          if (!card) break;
-
-          updates[`cards/${card.id}`] = {
-            ...card,
-            locationPath,
-            order: orderByLocation[locationPath]++,
-            faceUp: false,
-            hand,
-          };
-          cardsDealtCount[player.uid] = (cardsDealtCount[player.uid] || 0) + 1;
-        }
-      }
-    }
-
-    // P1 got 4 cards (full batch)
-    expect(cardsDealtCount["p1"]).toBe(4);
-    // P2 got 3 cards (last player took remaining less cards safely)
-    expect(cardsDealtCount["p2"]).toBe(3);
-    // All 7 cards were dealt, 0 remain in deckCopy
-    expect(deckCopy).toHaveLength(0);
-    expect(Object.keys(updates)).toHaveLength(7);
+    expect(quotas).toEqual([17, 17, 18]);
+    expect(quotas.reduce((a, b) => a + b, 0)).toBe(52);
   });
 
-  it("respects max cards per player limit and preserves remaining cards in deck", () => {
-    // 52 cards in deck, 3 players, max 5 cards per player, batchSize = 2
+  it("deals cards in sets according to cardsPerRound counter and gives remaining to last player", () => {
+    // 52 cards, 3 players, cardsPerRound = 4
     const deck = createMockDeck(52);
     const playersList = [
       { uid: "p1", displayName: "P1" },
       { uid: "p2", displayName: "P2" },
       { uid: "p3", displayName: "P3" },
     ];
-    const roomId = "room_poker";
-    const batchSize = 2;
-    const maxPerPlayer = 5;
+    const cardsPerRound = 4;
+    const baseCount = Math.floor(deck.length / playersList.length); // 17
+    const remainder = deck.length % playersList.length; // 1
+
+    const playerQuotas: Record<string, number> = {};
+    playersList.forEach((p, idx) => {
+      playerQuotas[p.uid] =
+        idx === playersList.length - 1 ? baseCount + remainder : baseCount;
+    });
 
     const deckCopy = [...deck].sort((a, b) => a.order - b.order);
     const updates: Record<string, any> = {};
-    const orderByLocation: Record<string, number> = {};
     const cardsDealtCount: Record<string, number> = { p1: 0, p2: 0, p3: 0 };
+    const orderByLocation: Record<string, number> = {};
 
     while (
       deckCopy.length > 0 &&
-      playersList.some((p) => (cardsDealtCount[p.uid] ?? 0) < maxPerPlayer)
+      playersList.some(
+        (p) =>
+          (cardsDealtCount[p.uid] ?? 0) < (playerQuotas[p.uid] ?? baseCount),
+      )
     ) {
-      for (const player of playersList) {
+      for (let i = 0; i < playersList.length; i++) {
+        const player = playersList[i]!;
         if (deckCopy.length === 0) break;
-        const currentCount = cardsDealtCount[player.uid] || 0;
-        if (currentCount >= maxPerPlayer) continue;
+        const quota = playerQuotas[player.uid] ?? baseCount;
+        const current = cardsDealtCount[player.uid] ?? 0;
+        if (current >= quota) continue;
 
-        const remainingNeeded = maxPerPlayer - currentCount;
-        const toDeal = Math.min(batchSize, deckCopy.length, remainingNeeded);
+        const remainingNeeded = quota - current;
+        const toDeal = Math.min(cardsPerRound, deckCopy.length, remainingNeeded);
         const hand = player.uid;
-        const locationPath = `${roomId}-${hand}-hand-pile`;
+        const locationPath = `room-${hand}-hand-pile`;
 
         if (orderByLocation[locationPath] === undefined) {
           orderByLocation[locationPath] = 0;
@@ -683,20 +653,20 @@ describe("5. Card Distribution and Stacking Animation Logic", () => {
             faceUp: false,
             hand,
           };
-          cardsDealtCount[player.uid] = (cardsDealtCount[player.uid] || 0) + 1;
+          cardsDealtCount[player.uid] =
+            (cardsDealtCount[player.uid] ?? 0) + 1;
         }
       }
     }
 
-    // Each player received exactly 5 cards
-    expect(cardsDealtCount["p1"]).toBe(5);
-    expect(cardsDealtCount["p2"]).toBe(5);
-    expect(cardsDealtCount["p3"]).toBe(5);
+    // P1 got 17, P2 got 17, P3 (last player) got 18
+    expect(cardsDealtCount["p1"]).toBe(17);
+    expect(cardsDealtCount["p2"]).toBe(17);
+    expect(cardsDealtCount["p3"]).toBe(18);
 
-    // Exactly 15 cards were dealt
-    expect(Object.keys(updates)).toHaveLength(15);
-    // Remaining 37 cards remain in deck
-    expect(deckCopy).toHaveLength(37);
+    // All 52 cards were dealt
+    expect(Object.keys(updates)).toHaveLength(52);
+    expect(deckCopy).toHaveLength(0);
   });
 });
 

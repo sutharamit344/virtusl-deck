@@ -480,13 +480,11 @@ interface DistributeCardsArgs {
   settings: {
     table: any;
     distribution?: {
-      batchSize?: number;
-      cardsPerPlayer?: number | "all";
+      random?: boolean;
+      cardsPerRound?: number;
     };
     [key: string]: any;
   };
-  batchSize?: number;
-  cardsPerPlayer?: number | "all";
   faceUp?: boolean;
 }
 
@@ -499,31 +497,39 @@ export const distributeCards = createAsyncThunk(
       pile,
       playersList,
       settings,
-      batchSize: customBatchSize,
-      cardsPerPlayer: customCardsPerPlayer,
       faceUp = false,
     }: DistributeCardsArgs,
     thunkAPI,
   ) => {
     try {
-      const batchSize = Math.max(
+      const isRandom = Boolean(settings?.distribution?.random);
+      const totalCards = pile.length;
+      const numPlayers = Math.max(1, playersList.length);
+
+      // Integer division without decimal numbers
+      const baseCount = Math.floor(totalCards / numPlayers);
+      const remainder = totalCards % numPlayers;
+
+      // Default count is cards/players properly without decimal numbers
+      const cardsPerRound = Math.max(
         1,
-        customBatchSize ?? settings?.distribution?.batchSize ?? 1,
+        settings?.distribution?.cardsPerRound ?? baseCount,
       );
-      const rawMax =
-        customCardsPerPlayer ?? settings?.distribution?.cardsPerPlayer ?? "all";
-      const maxPerPlayer =
-        rawMax === "all" || !rawMax || (typeof rawMax === "number" && rawMax <= 0)
-          ? Infinity
-          : Number(rawMax);
+
+      // Quotas per player: last player takes remaining cards so all cards are cleanly distributed
+      const playerQuotas: Record<string, number> = {};
+      playersList.forEach((p, idx) => {
+        playerQuotas[p.uid] =
+          idx === playersList.length - 1 ? baseCount + remainder : baseCount;
+      });
 
       thunkAPI.dispatch(
         insertRoomHistory({
           roomId,
           action: "Distribute Cards",
-          details: `Distributing cards (${batchSize} by ${batchSize}${
-            maxPerPlayer !== Infinity ? `, max ${maxPerPlayer}/player` : ""
-          }) to ${playersList.length} player${playersList.length > 1 ? "s" : ""}`,
+          details: isRandom
+            ? `Distributing ${totalCards} cards randomly among ${numPlayers} players (${baseCount} each, ${baseCount + remainder} to last player)`
+            : `Distributing ${totalCards} cards in sets of ${cardsPerRound} among ${numPlayers} players (${baseCount} each, ${baseCount + remainder} to last player)`,
         }),
       );
 
@@ -531,8 +537,8 @@ export const distributeCards = createAsyncThunk(
       await update(ref(db, `decks/${deckId}`), {
         isDistributing: true,
         distributionConfig: {
-          batchSize,
-          cardsPerPlayer: rawMax,
+          random: isRandom,
+          cardsPerRound,
         },
       });
 
@@ -540,7 +546,11 @@ export const distributeCards = createAsyncThunk(
       await new Promise((resolve) => setTimeout(resolve, 2200));
 
       // Phase 3: Assign cards into players' hands and finalize distribution
-      const deck = Object.values(pile).sort((a, b) => a.order - b.order);
+      let deck = Object.values(pile).sort((a, b) => a.order - b.order);
+
+      if (isRandom) {
+        deck = fisherYatesShuffle(deck);
+      }
 
       const updates: Record<string, any> = {
         isDistributing: false,
@@ -554,19 +564,11 @@ export const distributeCards = createAsyncThunk(
         cardsDealtCount[p.uid] = 0;
       });
 
-      while (
-        deck.length > 0 &&
-        playersList.some((p) => (cardsDealtCount[p.uid] ?? 0) < maxPerPlayer)
-      ) {
-        for (const player of playersList) {
-          if (deck.length === 0) break;
-          const currentCount = cardsDealtCount[player.uid] || 0;
-          if (currentCount >= maxPerPlayer) continue;
-
-          // Batch size deal: user can take remaining if fewer are left
-          const remainingNeeded = maxPerPlayer - currentCount;
-          const toDeal = Math.min(batchSize, deck.length, remainingNeeded);
-
+      if (isRandom) {
+        // Random distribution: assign cards from the shuffled deck according to quotas
+        for (let i = 0; i < playersList.length; i++) {
+          const player = playersList[i]!;
+          const quota = playerQuotas[player.uid] ?? baseCount;
           const hand = player.uid;
           const locationPath = `${roomId}-${hand}-hand-pile`;
 
@@ -574,7 +576,7 @@ export const distributeCards = createAsyncThunk(
             orderByLocation[locationPath] = 0;
           }
 
-          for (let b = 0; b < toDeal; b++) {
+          for (let c = 0; c < quota; c++) {
             const card = deck.pop();
             if (!card) break;
 
@@ -585,7 +587,51 @@ export const distributeCards = createAsyncThunk(
               faceUp,
               hand,
             };
-            cardsDealtCount[player.uid] = (cardsDealtCount[player.uid] || 0) + 1;
+            cardsDealtCount[player.uid] = (cardsDealtCount[player.uid] ?? 0) + 1;
+          }
+        }
+      } else {
+        // Distribute by set (cardsPerRound round-robin):
+        // Each player receives cardsPerRound cards per round until their quota is filled
+        while (
+          deck.length > 0 &&
+          playersList.some(
+            (p) =>
+              (cardsDealtCount[p.uid] ?? 0) <
+              (playerQuotas[p.uid] ?? baseCount),
+          )
+        ) {
+          for (let i = 0; i < playersList.length; i++) {
+            const player = playersList[i]!;
+            if (deck.length === 0) break;
+            const quota = playerQuotas[player.uid] ?? baseCount;
+            const current = cardsDealtCount[player.uid] ?? 0;
+            if (current >= quota) continue;
+
+            const remainingNeeded = quota - current;
+            const toDeal = Math.min(cardsPerRound, deck.length, remainingNeeded);
+
+            const hand = player.uid;
+            const locationPath = `${roomId}-${hand}-hand-pile`;
+
+            if (orderByLocation[locationPath] === undefined) {
+              orderByLocation[locationPath] = 0;
+            }
+
+            for (let b = 0; b < toDeal; b++) {
+              const card = deck.pop();
+              if (!card) break;
+
+              updates[`cards/${card.id}`] = {
+                ...card,
+                locationPath,
+                order: orderByLocation[locationPath]++,
+                faceUp,
+                hand,
+              };
+              cardsDealtCount[player.uid] =
+                (cardsDealtCount[player.uid] ?? 0) + 1;
+            }
           }
         }
       }
@@ -618,7 +664,6 @@ export const distributeCards = createAsyncThunk(
         (a: number, b: any) => a + Number(b),
         0,
       );
-      const remainingOnTable = deck.length;
 
       thunkAPI.dispatch(
         insertRoomHistory({
@@ -629,7 +674,7 @@ export const distributeCards = createAsyncThunk(
               ([hand, count]) =>
                 `${playersList.find((p) => p.uid === hand)?.displayName || hand} (${count} cards)`,
             )
-            .join(", ")} (${totalDealt} total, ${remainingOnTable} remaining)`,
+            .join(", ")} (${totalDealt} total)`,
         }),
       );
 
