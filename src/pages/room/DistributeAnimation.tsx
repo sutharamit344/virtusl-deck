@@ -9,6 +9,8 @@ interface DistributeAnimationProps {
   cardBack?: string | undefined;
   cardW?: number | undefined;
   cardH?: number | undefined;
+  batchSize?: number | undefined;
+  cardsPerPlayer?: number | "all" | undefined;
 }
 
 export const DistributeAnimation: React.FC<DistributeAnimationProps> = ({
@@ -18,6 +20,8 @@ export const DistributeAnimation: React.FC<DistributeAnimationProps> = ({
   cardBack = "/deck_standard_52.jpg",
   cardW = 60,
   cardH = 88,
+  batchSize = 1,
+  cardsPerPlayer = "all",
 }) => {
   const [playStack] = useSound("/sounds/stackCards.mp3", { volume: 0.6 });
 
@@ -26,58 +30,75 @@ export const DistributeAnimation: React.FC<DistributeAnimationProps> = ({
   const b = tableHeight / 2 - 30;
   const angleStep = (2 * Math.PI) / numPlayers;
 
-  // Determine rounds of cards to deal in the animation (between 16 and 24 cards total)
-  const rounds = Math.max(3, Math.min(8, Math.floor(24 / numPlayers)));
-  const totalCards = rounds * numPlayers;
-  const intervalMs = 70; // 70ms between each card deal
-
-  // Play deal sounds in rhythm
-  useEffect(() => {
-    let cardIdx = 0;
-    const soundInterval = setInterval(() => {
-      if (cardIdx >= totalCards) {
-        clearInterval(soundInterval);
-        return;
-      }
-      if (cardIdx % 2 === 0) {
-        try {
-          playStack();
-        } catch (_) {}
-      }
-      cardIdx++;
-    }, intervalMs);
-
-    return () => clearInterval(soundInterval);
-  }, [totalCards, intervalMs, playStack]);
-
   const cards = useMemo(() => {
     const list = [];
-    for (let i = 0; i < totalCards; i++) {
-      const playerIdx = i % numPlayers;
-      const stackIdx = Math.floor(i / numPlayers);
-      const angle = angleStep * playerIdx - Math.PI / 2;
-      const targetBaseX = -a * Math.cos(angle) * 1.15;
-      const targetBaseY = -b * Math.sin(angle) * 1.1;
+    const effectiveBatch = Math.max(1, batchSize || 1);
+    const targetCardsPerPlayer =
+      typeof cardsPerPlayer === "number" && cardsPerPlayer > 0
+        ? Math.min(cardsPerPlayer, 12)
+        : Math.max(2, Math.min(6, Math.floor(20 / numPlayers)));
 
-      // Stacking offset so cards neatly layer on the player's avatar
-      const stackOffsetX = (stackIdx % 6) * 2 - 5;
-      const stackOffsetY = (stackIdx % 6) * -2 + 3;
-      const stackRot =
-        ((angle * 180) / Math.PI + 90) + ((stackIdx % 4) * 3 - 4.5);
+    const playerCounts = new Array(numPlayers).fill(0);
+    let cardCount = 0;
+    let currentTimeMs = 0;
 
-      const delayMs = i * intervalMs;
+    while (playerCounts.some((c) => c < targetCardsPerPlayer)) {
+      for (let p = 0; p < numPlayers; p++) {
+        if (playerCounts[p] >= targetCardsPerPlayer) continue;
 
-      list.push({
-        id: `deal-anim-card-${i}`,
-        targetX: targetBaseX + stackOffsetX,
-        targetY: targetBaseY + stackOffsetY,
-        targetRot: stackRot,
-        delayMs,
-        zIndex: 50 + i,
-      });
+        const countThisTurn = Math.min(
+          effectiveBatch,
+          targetCardsPerPlayer - playerCounts[p],
+        );
+        const angle = angleStep * p - Math.PI / 2;
+        const targetBaseX = -a * Math.cos(angle) * 1.15;
+        const targetBaseY = -b * Math.sin(angle) * 1.1;
+
+        for (let bIdx = 0; bIdx < countThisTurn; bIdx++) {
+          const stackIdx = playerCounts[p];
+          const stackOffsetX = (stackIdx % 6) * 2 - 5;
+          const stackOffsetY = (stackIdx % 6) * -2 + 3;
+          const stackRot =
+            ((angle * 180) / Math.PI + 90) + ((stackIdx % 4) * 3 - 4.5);
+
+          list.push({
+            id: `deal-anim-card-${cardCount}`,
+            targetX: targetBaseX + stackOffsetX,
+            targetY: targetBaseY + stackOffsetY,
+            targetRot: stackRot,
+            delayMs: currentTimeMs,
+            zIndex: 50 + cardCount,
+          });
+
+          cardCount++;
+          playerCounts[p]++;
+          currentTimeMs += 40; // 40ms between cards within the same batch
+        }
+        currentTimeMs += 65; // 65ms gap between players
+      }
     }
     return list;
-  }, [numPlayers, totalCards, angleStep, a, b, intervalMs]);
+  }, [numPlayers, angleStep, a, b, batchSize, cardsPerPlayer]);
+
+  // Play deal sounds in rhythm with card flights
+  useEffect(() => {
+    const timeouts: NodeJS.Timeout[] = [];
+
+    cards.forEach((card, idx) => {
+      if (idx % 2 === 0) {
+        const timeout = setTimeout(() => {
+          try {
+            playStack();
+          } catch (_) {}
+        }, card.delayMs);
+        timeouts.push(timeout);
+      }
+    });
+
+    return () => {
+      timeouts.forEach(clearTimeout);
+    };
+  }, [cards, playStack]);
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-visible z-[9999]">

@@ -59,9 +59,8 @@ const Table: React.FC<TableProps> = ({
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [face, setFace] = useState<boolean | null>(null);
   const [lastCardId, setLastCardId] = useState<string | null>(null);
-  const { cards, back, deckInRoom, isDistributing } = useAppSelector(
-    (state) => state.deck,
-  );
+  const { cards, back, deckInRoom, isDistributing, distributionConfig } =
+    useAppSelector((state) => state.deck);
   const { turnState, settings } = useAppSelector((state) => state.room);
   const [openDialog, setOpenDialog] = useState(false);
   const [openHistoryDialog, setOpenHistoryDialog] = useState(false);
@@ -368,6 +367,16 @@ const Table: React.FC<TableProps> = ({
               cardBack={back}
               cardW={cardW}
               cardH={cardH}
+              batchSize={
+                distributionConfig?.batchSize ??
+                settings?.distribution?.batchSize ??
+                1
+              }
+              cardsPerPlayer={
+                distributionConfig?.cardsPerPlayer ??
+                settings?.distribution?.cardsPerPlayer ??
+                "all"
+              }
             />
           )}
 

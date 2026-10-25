@@ -477,7 +477,16 @@ interface DistributeCardsArgs {
   deckId: string;
   pile: any[];
   playersList: Player[];
-  settings: { table: any };
+  settings: {
+    table: any;
+    distribution?: {
+      batchSize?: number;
+      cardsPerPlayer?: number | "all";
+    };
+    [key: string]: any;
+  };
+  batchSize?: number;
+  cardsPerPlayer?: number | "all";
   faceUp?: boolean;
 }
 
@@ -490,22 +499,41 @@ export const distributeCards = createAsyncThunk(
       pile,
       playersList,
       settings,
+      batchSize: customBatchSize,
+      cardsPerPlayer: customCardsPerPlayer,
       faceUp = false,
     }: DistributeCardsArgs,
     thunkAPI,
   ) => {
     try {
+      const batchSize = Math.max(
+        1,
+        customBatchSize ?? settings?.distribution?.batchSize ?? 1,
+      );
+      const rawMax =
+        customCardsPerPlayer ?? settings?.distribution?.cardsPerPlayer ?? "all";
+      const maxPerPlayer =
+        rawMax === "all" || !rawMax || (typeof rawMax === "number" && rawMax <= 0)
+          ? Infinity
+          : Number(rawMax);
+
       thunkAPI.dispatch(
         insertRoomHistory({
           roomId,
           action: "Distribute Cards",
-          details: `Distributing ${pile.length} cards to ${playersList.length} player${playersList.length > 1 ? "s" : ""}`,
+          details: `Distributing cards (${batchSize} by ${batchSize}${
+            maxPerPlayer !== Infinity ? `, max ${maxPerPlayer}/player` : ""
+          }) to ${playersList.length} player${playersList.length > 1 ? "s" : ""}`,
         }),
       );
 
       // Phase 1: Signal distribution start in database so all clients trigger dealing animation & action blocker
       await update(ref(db, `decks/${deckId}`), {
         isDistributing: true,
+        distributionConfig: {
+          batchSize,
+          cardsPerPlayer: rawMax,
+        },
       });
 
       // Phase 2: Allow dealing & stacking animation to play across all connected screens (~2200ms)
@@ -517,14 +545,28 @@ export const distributeCards = createAsyncThunk(
       const updates: Record<string, any> = {
         isDistributing: false,
         distributed: true,
+        distributionConfig: null,
       };
 
       const orderByLocation: Record<string, number> = {};
+      const cardsDealtCount: Record<string, number> = {};
+      playersList.forEach((p) => {
+        cardsDealtCount[p.uid] = 0;
+      });
 
-      while (deck.length > 0) {
+      while (
+        deck.length > 0 &&
+        playersList.some((p) => (cardsDealtCount[p.uid] ?? 0) < maxPerPlayer)
+      ) {
         for (const player of playersList) {
-          const card = deck.pop();
-          if (!card) break;
+          if (deck.length === 0) break;
+          const currentCount = cardsDealtCount[player.uid] || 0;
+          if (currentCount >= maxPerPlayer) continue;
+
+          // Batch size deal: user can take remaining if fewer are left
+          const remainingNeeded = maxPerPlayer - currentCount;
+          const toDeal = Math.min(batchSize, deck.length, remainingNeeded);
+
           const hand = player.uid;
           const locationPath = `${roomId}-${hand}-hand-pile`;
 
@@ -532,13 +574,19 @@ export const distributeCards = createAsyncThunk(
             orderByLocation[locationPath] = 0;
           }
 
-          updates[`cards/${card.id}`] = {
-            ...card,
-            locationPath,
-            order: orderByLocation[locationPath]++,
-            faceUp,
-            hand,
-          };
+          for (let b = 0; b < toDeal; b++) {
+            const card = deck.pop();
+            if (!card) break;
+
+            updates[`cards/${card.id}`] = {
+              ...card,
+              locationPath,
+              order: orderByLocation[locationPath]++,
+              faceUp,
+              hand,
+            };
+            cardsDealtCount[player.uid] = (cardsDealtCount[player.uid] || 0) + 1;
+          }
         }
       }
 
@@ -566,6 +614,12 @@ export const distributeCards = createAsyncThunk(
         {} as Record<string, number>,
       );
 
+      const totalDealt = Object.values(cardCounts).reduce(
+        (a: number, b: any) => a + Number(b),
+        0,
+      );
+      const remainingOnTable = deck.length;
+
       thunkAPI.dispatch(
         insertRoomHistory({
           roomId,
@@ -575,14 +629,17 @@ export const distributeCards = createAsyncThunk(
               ([hand, count]) =>
                 `${playersList.find((p) => p.uid === hand)?.displayName || hand} (${count} cards)`,
             )
-            .join(", ")}`,
+            .join(", ")} (${totalDealt} total, ${remainingOnTable} remaining)`,
         }),
       );
 
       return updates;
     } catch (error) {
       const err = error as Error;
-      await update(ref(db, `decks/${deckId}`), { isDistributing: false }).catch(() => {});
+      await update(ref(db, `decks/${deckId}`), {
+        isDistributing: false,
+        distributionConfig: null,
+      }).catch(() => {});
       return thunkAPI.rejectWithValue(err.message);
     }
   },

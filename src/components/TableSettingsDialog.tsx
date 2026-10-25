@@ -13,7 +13,7 @@ interface SettingsDialogProps {
   roomId: string;
 }
 
-const TABS = ["Room", "Table", "Hand", "Log"];
+const TABS = ["Room", "Table", "Hand", "Distribution", "Log"];
 
 export const TableSettingsDialog: React.FC<SettingsDialogProps> = ({
   open,
@@ -401,6 +401,136 @@ export const TableSettingsDialog: React.FC<SettingsDialogProps> = ({
           )}
 
           {activeTab === 3 && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-bold text-gray-200">
+                Card Distribution Settings
+              </h3>
+
+              {/* Dealing Batch Size */}
+              <div className="space-y-2">
+                <span className="block text-sm font-semibold text-gray-300">
+                  Default Dealing Batch Size (Cards dealt per round)
+                </span>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {[1, 2, 3, 4, 5, 6].map((count) => {
+                    const currentBatch = settings?.distribution?.batchSize ?? 1;
+                    const isSelected = currentBatch === count;
+                    return (
+                      <button
+                        key={count}
+                        type="button"
+                        onClick={() =>
+                          handleChange("distribution", {
+                            ...settings?.distribution,
+                            batchSize: count,
+                          })
+                        }
+                        className={`py-2 px-3 rounded-lg border text-center font-bold text-xs transition-all ${
+                          isSelected
+                            ? "border-cyan-400 bg-cyan-400/20 text-cyan-400"
+                            : "border-zinc-800 bg-zinc-900/60 text-gray-300 hover:border-zinc-700"
+                        }`}
+                      >
+                        {count === 1 ? "1 by 1" : `${count} by ${count}`}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-400">
+                  Number of cards dealt to each player per round (e.g. 1-by-1, 2-by-2, 4-by-4). If the deck has fewer cards remaining, the last player safely takes the remaining cards.
+                </p>
+              </div>
+
+              {/* Default Cards per Player Limit */}
+              <div className="space-y-3 border-t border-white/5 pt-4">
+                <span className="block text-sm font-semibold text-gray-300">
+                  Default Cards per Player Limit
+                </span>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-300">
+                    <input
+                      type="radio"
+                      name="distLimitMode"
+                      checked={
+                        !settings?.distribution?.cardsPerPlayer ||
+                        settings?.distribution?.cardsPerPlayer === "all"
+                      }
+                      onChange={() =>
+                        handleChange("distribution", {
+                          ...settings?.distribution,
+                          cardsPerPlayer: "all",
+                        })
+                      }
+                      className="text-cyan-400 focus:ring-cyan-400/30 border-zinc-800"
+                    />
+                    <span>All Cards (split full deck evenly)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-300">
+                    <input
+                      type="radio"
+                      name="distLimitMode"
+                      checked={
+                        typeof settings?.distribution?.cardsPerPlayer ===
+                          "number" &&
+                        settings?.distribution?.cardsPerPlayer > 0
+                      }
+                      onChange={() =>
+                        handleChange("distribution", {
+                          ...settings?.distribution,
+                          cardsPerPlayer: 5,
+                        })
+                      }
+                      className="text-cyan-400 focus:ring-cyan-400/30 border-zinc-800"
+                    />
+                    <span>Custom Limit per Player</span>
+                  </label>
+                </div>
+
+                {typeof settings?.distribution?.cardsPerPlayer === "number" && (
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    {[2, 3, 5, 7, 13].map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() =>
+                          handleChange("distribution", {
+                            ...settings?.distribution,
+                            cardsPerPlayer: num,
+                          })
+                        }
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
+                          settings?.distribution?.cardsPerPlayer === num
+                            ? "border-cyan-400 bg-cyan-400 text-black font-bold"
+                            : "border-zinc-800 bg-zinc-900 text-gray-300 hover:border-zinc-700"
+                        }`}
+                      >
+                        {num} Cards
+                      </button>
+                    ))}
+                    <div className="flex items-center gap-2 ml-2">
+                      <span className="text-xs text-gray-400">Custom:</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={52}
+                        value={settings?.distribution?.cardsPerPlayer || 5}
+                        onChange={(e) =>
+                          handleChange("distribution", {
+                            ...settings?.distribution,
+                            cardsPerPlayer: Math.max(1, Number(e.target.value)),
+                          })
+                        }
+                        className="w-16 px-2 py-1 bg-zinc-900 border border-zinc-700 rounded text-center text-xs text-white"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 4 && (
             <div className="space-y-4">
               <h3 className="text-lg font-bold text-gray-200">Activity Logs</h3>
               <label className="flex items-center gap-3 cursor-pointer">

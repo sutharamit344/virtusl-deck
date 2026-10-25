@@ -19,6 +19,10 @@ interface DeckState {
     [locationPath: string]: { type: string; startedAt: number };
   } | null;
   isDistributing?: boolean;
+  distributionConfig?: {
+    batchSize?: number;
+    cardsPerPlayer?: number | "all";
+  } | null;
   deckInRoom?: string | null;
   back?: string;
 }
@@ -35,6 +39,10 @@ export interface DeckData {
     [locationPath: string]: { type: string; startedAt: number };
   } | null;
   isDistributing?: boolean;
+  distributionConfig?: {
+    batchSize?: number;
+    cardsPerPlayer?: number | "all";
+  } | null;
   roomId?: string;
   deckAccess?: string;
   ownerUid?: string;
@@ -72,6 +80,7 @@ const deckSlice = createSlice({
       };
       state.isShuffling = action.payload.isShuffling ?? null;
       state.isDistributing = action.payload.isDistributing ?? false;
+      state.distributionConfig = action.payload.distributionConfig ?? null;
       state.deckAccess =
         action.payload.deckAccess || action.payload.ownerUid || "";
       state.deckInRoom = action.payload.roomId || null;

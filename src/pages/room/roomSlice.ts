@@ -37,10 +37,16 @@ export interface TableSettings {
   zones: TableZones;
 }
 
+export interface DistributionSettings {
+  batchSize?: number; // 1, 2, 3, 4, 5, etc. (deal 1 by 1, 2 by 2, etc.)
+  cardsPerPlayer?: number | "all"; // max cards per player or "all"
+}
+
 export interface RoomSettings {
   mode: boolean;
   faceUp: boolean;
   table: TableSettings;
+  distribution?: DistributionSettings;
   private?: boolean;
   password?: string;
   allowSpectators?: boolean;
