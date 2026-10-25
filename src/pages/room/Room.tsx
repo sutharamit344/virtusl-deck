@@ -390,7 +390,7 @@ const Room: React.FC = () => {
         </div>
 
         {/* Your Hand */}
-        <div className="flex-0">
+        <div className="flex-0 relative z-30">
           <Board
             handleCardBySuit={(suited: Record<string, CardType[]>) => {
               setCardBySuit(suited);

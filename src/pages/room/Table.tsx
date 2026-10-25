@@ -110,66 +110,50 @@ const Table: React.FC<TableProps> = ({
   );
 
   const pile = useMemo(() => {
-    const mover = new Set<string>();
-    const cardInRound: Card[] = [];
-    const sliceIndex = playersList.length || 1;
-    const cardsOnTable = getCardsByLocation().sort((a, b) => b.order - a.order);
-
-    cardsOnTable.forEach((card) => {
-      if (cardInRound.length >= sliceIndex) return;
-
-      const playerKey = card.hand || card.owner;
-      if (playerKey) {
-        if (!mover.has(playerKey)) {
-          mover.add(playerKey);
-          cardInRound.push(card);
-        }
-      } else {
-        cardInRound.push(card);
-      }
-    });
-
-    return cardInRound.reverse();
-  }, [getCardsByLocation, playersList.length]);
+    return getCardsByLocation().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [getCardsByLocation]);
 
   useEffect(() => {
     setFinalCards(pile);
   }, [pile]);
 
-  const playerCardMap = useMemo(() => {
-    const map = new Map<string, Card>();
-    const usedCardIds = new Set<string>();
+  const playerCardsMap = useMemo(() => {
+    const map = new Map<string, Card[]>();
+    playersList.forEach((p) => map.set(p.uid, []));
 
-    // 1. Assign cards that have an explicit matching hand or owner
-    playersList.forEach((player) => {
-      const match = finalCards
-        .filter(
-          (c) =>
-            (c.hand === player.uid || c.owner === player.uid) &&
-            !usedCardIds.has(c.id),
-        )
-        .reverse()?.[0];
-      if (match) {
-        map.set(player.uid, match);
-        usedCardIds.add(match.id);
+    const sortedTableCards = getCardsByLocation().sort(
+      (a, b) => (a.order ?? 0) - (b.order ?? 0),
+    );
+
+    const unassigned: Card[] = [];
+
+    sortedTableCards.forEach((card) => {
+      const ownerUid = card.hand || card.owner;
+      if (ownerUid && map.has(ownerUid)) {
+        map.get(ownerUid)!.push(card);
+      } else {
+        unassigned.push(card);
       }
     });
 
-    // 2. Fallback: for cards with no hand or owner (legacy or unassigned),
-    // assign to any player in this round who doesn't have a card yet
-    const unassignedCards = finalCards.filter((c) => !usedCardIds.has(c.id));
-    playersList.forEach((player) => {
-      if (!map.has(player.uid) && unassignedCards.length > 0) {
-        const fallback = unassignedCards.shift();
-        if (fallback) {
-          map.set(player.uid, fallback);
-          usedCardIds.add(fallback.id);
+    // If there are unassigned cards (legacy without hand/owner), distribute to players
+    unassigned.forEach((card) => {
+      let targetPlayer = playersList[0]?.uid;
+      let minCount = Infinity;
+      playersList.forEach((p) => {
+        const count = map.get(p.uid)?.length ?? 0;
+        if (count < minCount) {
+          minCount = count;
+          targetPlayer = p.uid;
         }
+      });
+      if (targetPlayer && map.has(targetPlayer)) {
+        map.get(targetPlayer)!.push(card);
       }
     });
 
     return map;
-  }, [playersList, finalCards]);
+  }, [getCardsByLocation, playersList]);
 
   const updateCard = (updatedFields: Partial<Card>) => {
     if (selectedCard && deckId) {
@@ -230,11 +214,7 @@ const Table: React.FC<TableProps> = ({
       const pileY = y * pileRatio;
       const playerPath = `${roomId}-${player.uid}-hand-pile`;
       const playerCards = getCards.filter((c) => c.locationPath === playerPath);
-      const card = playerCardMap.get(player.uid);
-
-      const arrangedCards = card
-        ? finalCards.findIndex((c) => c.id === card.id)
-        : 0;
+      const playedCards = playerCardsMap.get(player.uid) || [];
 
       return (
         <div key={player.uid}>
@@ -268,45 +248,55 @@ const Table: React.FC<TableProps> = ({
             </DropZone>
           </div>
 
-          {card && table?.mode === "Circular" && (
-            <div
-              id={card.id}
-              style={{
-                height: cardH,
-                width: cardW,
-                zIndex: Math.max(1, (arrangedCards + 1) * 2),
-                position: "absolute",
-                ...(draging !== card.id && {
-                  left: `calc(50% + ${pileX}px)`,
-                  top: `calc(50% + ${pileY}px)`,
-                  transform: `translate(-50%, -50%) rotate(${
-                    draging !== card.id && `-25deg`
-                  })`,
-                }),
-              }}
-            >
-              <DeckCard
-                isCardAccess={isDeckAccess}
-                playersUid={playersUid}
-                cardH={cardH}
-                cardW={cardW}
-                setDraging={setDraging}
-                order={card?.order}
-                back={back}
-                card={card}
-                pile={pile}
-                faceUp={face ?? card?.faceUp}
-                index={index}
-                isSelected={selectedCard?.id === card.id}
-                locationPath={locationPath}
-                onClick={() =>
-                  isDeckAccess &&
-                  setSelectedCard(card.id === selectedCard?.id ? null : card)
-                }
-                updateCard={updateCard}
-              />
-            </div>
-          )}
+          {table?.mode === "Circular" &&
+            playedCards.map((card, cardIdx) => {
+              const isBeingDragged = draging === card.id;
+              // Higher card.order gets higher zIndex so newly played cards always render on top
+              const baseZIndex =
+                10 + (typeof card.order === "number" ? card.order : cardIdx);
+              const cardZIndex = isBeingDragged ? 999999 : baseZIndex;
+
+              return (
+                <div
+                  key={card.id}
+                  id={card.id}
+                  style={{
+                    height: cardH,
+                    width: cardW,
+                    zIndex: cardZIndex,
+                    position: "absolute",
+                    left: `calc(50% + ${pileX}px)`,
+                    top: `calc(50% + ${pileY}px)`,
+                    transform: `translate(-50%, -50%) ${
+                      !isBeingDragged ? "rotate(-25deg)" : ""
+                    }`,
+                  }}
+                >
+                  <DeckCard
+                    isCardAccess={isDeckAccess}
+                    playersUid={playersUid}
+                    cardH={cardH}
+                    cardW={cardW}
+                    setDraging={setDraging}
+                    order={card?.order}
+                    back={back}
+                    card={card}
+                    pile={pile}
+                    faceUp={face ?? card?.faceUp}
+                    index={index}
+                    isSelected={selectedCard?.id === card.id}
+                    locationPath={locationPath}
+                    onClick={() =>
+                      isDeckAccess &&
+                      setSelectedCard(
+                        card.id === selectedCard?.id ? null : card,
+                      )
+                    }
+                    updateCard={updateCard}
+                  />
+                </div>
+              );
+            })}
         </div>
       );
     });
@@ -359,7 +349,7 @@ const Table: React.FC<TableProps> = ({
                 display: pile.length ? "flex" : "none",
                 alignItems: "center",
                 justifyContent: "center",
-                zIndex: 10,
+                zIndex: 5,
               }}
             >
               {finalCards?.length}

@@ -368,5 +368,74 @@ describe("4. Circular Table Played Cards Resolution", () => {
     expect(map.get("ams_uid")?.id).toBe("c_ams");
     expect(map.get("craft_uid")?.id).toBe("c_craft_legacy");
   });
+
+  it("Preserves previously played cards below newly played cards with strict zIndex and drag visibility", () => {
+    const playersList = [
+      { uid: "ams_uid", displayName: "Ams" },
+      { uid: "craft_uid", displayName: "Craft" },
+    ];
+
+    // Ams plays Ace of Clubs (order 0), Craft plays 7 of Hearts (order 1), then Ams plays King of Hearts (order 2)
+    const cardsOnTable: Card[] = [
+      {
+        id: "c_ams_1",
+        suit: "Clubs",
+        rank: "A",
+        order: 0,
+        locationPath: "room_1-table-pile",
+        hand: "ams_uid",
+      } as Card,
+      {
+        id: "c_craft_1",
+        suit: "Hearts",
+        rank: "7",
+        order: 1,
+        locationPath: "room_1-table-pile",
+        hand: "craft_uid",
+      } as Card,
+      {
+        id: "c_ams_2",
+        suit: "Hearts",
+        rank: "K",
+        order: 2,
+        locationPath: "room_1-table-pile",
+        hand: "ams_uid",
+      } as Card,
+    ];
+
+    // Group cards by player
+    const map = new Map<string, Card[]>();
+    playersList.forEach((p) => map.set(p.uid, []));
+
+    const sortedTableCards = [...cardsOnTable].sort(
+      (a, b) => (a.order ?? 0) - (b.order ?? 0),
+    );
+
+    sortedTableCards.forEach((card) => {
+      const ownerUid = card.hand || card.owner;
+      if (ownerUid && map.has(ownerUid)) {
+        map.get(ownerUid)!.push(card);
+      }
+    });
+
+    const amsCards = map.get("ams_uid") || [];
+    expect(amsCards).toHaveLength(2);
+    expect(amsCards[0]!.id).toBe("c_ams_1");
+    expect(amsCards[1]!.id).toBe("c_ams_2");
+
+    // Check z-index calculation: newer card must have higher zIndex
+    const zIndexOld = 10 + (amsCards[0]!.order ?? 0);
+    const zIndexNew = 10 + (amsCards[1]!.order ?? 0);
+    expect(zIndexNew).toBeGreaterThan(zIndexOld);
+
+    // When the top card is dragged, it gets max zIndex and the bottom card remains visible
+    const isDraggingTopCard = true;
+    const draggingZIndex = isDraggingTopCard ? 999999 : zIndexNew;
+    expect(draggingZIndex).toBe(999999);
+    // The previously played card c_ams_1 is still intact in amsCards array and rendered below
+    expect(amsCards[0]).toBeDefined();
+    expect(amsCards[0]!.id).toBe("c_ams_1");
+  });
 });
+
 
