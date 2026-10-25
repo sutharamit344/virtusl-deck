@@ -5,7 +5,11 @@ const cors = require("cors");
 const corsHandler = cors({ origin: true });
 require("dotenv").config();
 
-admin.initializeApp();
+admin.initializeApp({
+  databaseURL:
+    process.env.DATABASE_URL ||
+    "https://virtual-deck-52-default-rtdb.firebaseio.com",
+});
 const db = admin.database();
 
 const transporter = nodemailer.createTransport({
